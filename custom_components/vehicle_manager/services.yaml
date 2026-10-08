@@ -1,0 +1,117 @@
+set_mileage:
+  target:
+    device:
+      integration: vehicle_manager
+  fields:
+    mileage:
+      required: true
+      example: 142500
+      selector:
+        number:
+          min: 0
+          max: 3000000
+          step: 1
+          mode: box
+          unit_of_measurement: km
+
+set_document:
+  target:
+    device:
+      integration: vehicle_manager
+  fields:
+    document:
+      required: true
+      selector:
+        select:
+          translation_key: document
+          options:
+            - rca
+            - itp
+            - rovinieta
+            - revizie
+            - distributie
+    date:
+      selector:
+        date:
+    km:
+      selector:
+        number:
+          min: 0
+          max: 3000000
+          step: 1
+          mode: box
+          unit_of_measurement: km
+
+renew_document:
+  target:
+    device:
+      integration: vehicle_manager
+  fields:
+    document:
+      required: true
+      selector:
+        select:
+          translation_key: document
+          options:
+            - rca
+            - itp
+            - rovinieta
+            - revizie
+            - distributie
+    months:
+      default: 12
+      selector:
+        number:
+          min: 1
+          max: 120
+          step: 1
+          mode: box
+          unit_of_measurement: luni
+    interval_km:
+      selector:
+        number:
+          min: 0
+          max: 300000
+          step: 500
+          mode: box
+          unit_of_measurement: km
+
+mark_service_done:
+  target:
+    device:
+      integration: vehicle_manager
+  fields:
+    document:
+      default: revizie
+      selector:
+        select:
+          translation_key: document
+          options:
+            - revizie
+            - distributie
+    mileage:
+      selector:
+        number:
+          min: 0
+          max: 3000000
+          step: 1
+          mode: box
+          unit_of_measurement: km
+    interval_months:
+      default: 12
+      selector:
+        number:
+          min: 1
+          max: 120
+          step: 1
+          mode: box
+          unit_of_measurement: luni
+    interval_km:
+      default: 15000
+      selector:
+        number:
+          min: 0
+          max: 300000
+          step: 500
+          mode: box
+          unit_of_measurement: km

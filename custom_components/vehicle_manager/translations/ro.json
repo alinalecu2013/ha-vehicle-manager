@@ -1,0 +1,239 @@
+{
+  "title": "Vehicle Manager",
+  "config": {
+    "abort": {
+      "already_configured": "Exista deja un vehicul cu acest numar de inmatriculare."
+    },
+    "step": {
+      "user": {
+        "title": "Vehicul nou",
+        "description": "Completeaza caracteristicile vehiculului. Numarul de inmatriculare trebuie sa fie unic.",
+        "data": {
+          "name": "Nume vehicul",
+          "make": "Marca",
+          "model": "Model",
+          "license_plate": "Numar de inmatriculare",
+          "year": "An fabricatie",
+          "mileage": "Numar de kilometri",
+          "color": "Culoare",
+          "engine_capacity": "Capacitate motor",
+          "fuel_type": "Combustibil folosit",
+          "vin": "Serie de sasiu (VIN)"
+        },
+        "data_description": {
+          "name": "Asa va aparea vehiculul in Home Assistant si in meniul cardului.",
+          "color": "Numele culorii (ex. Rosu, Albastru metalizat) sau un cod hex. Este folosita si pentru modelul 3D."
+        }
+      },
+      "documents": {
+        "title": "Acte si scadente",
+        "description": "Completeaza datele de expirare. Poti lasa gol ce nu cunosti acum si completa mai tarziu direct din interfata.",
+        "data": {
+          "rca_date": "RCA expira la",
+          "itp_date": "ITP expira la",
+          "rovinieta_date": "Rovinieta expira la",
+          "revizie_date": "Revizie scadenta la data",
+          "revizie_km": "Revizie scadenta la km",
+          "distributie_date": "Distributie scadenta la data",
+          "distributie_km": "Distributie scadenta la km"
+        },
+        "data_description": {
+          "revizie_km": "Kilometrajul la care devine scadenta revizia (valoare absoluta a odometrului).",
+          "distributie_km": "Kilometrajul la care trebuie schimbata distributia (valoare absoluta a odometrului)."
+        }
+      },
+      "media": {
+        "title": "Poza si model 3D",
+        "description": "Incarca o poza a masinii. Opțional poti incarca si un model 3D (.glb sau .gltf) care va fi afisat rotativ in card; daca nu incarci niciunul, cardul deseneaza o masina stilizata in culoarea vehiculului.",
+        "data": {
+          "photo_upload": "Incarca poza",
+          "model_3d_upload": "Incarca model 3D (.glb)",
+          "photo": "sau URL poza",
+          "model_3d": "sau URL model 3D"
+        },
+        "data_description": {
+          "photo": "Lasa gol daca ai incarcat un fisier. Accepta si cai /local/....",
+          "model_3d": "Lasa gol daca ai incarcat un fisier. Accepta si cai /local/...."
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Editeaza vehiculul",
+        "menu_options": {
+          "vehicle": "Caracteristici vehicul",
+          "documents": "Acte si scadente",
+          "media": "Poza si model 3D",
+          "thresholds": "Praguri de avertizare"
+        }
+      },
+      "vehicle": {
+        "title": "Caracteristici vehicul",
+        "data": {
+          "name": "Nume vehicul",
+          "make": "Marca",
+          "model": "Model",
+          "license_plate": "Numar de inmatriculare",
+          "year": "An fabricatie",
+          "mileage": "Numar de kilometri",
+          "color": "Culoare",
+          "engine_capacity": "Capacitate motor",
+          "fuel_type": "Combustibil folosit",
+          "vin": "Serie de sasiu (VIN)"
+        }
+      },
+      "documents": {
+        "title": "Acte si scadente",
+        "data": {
+          "rca_date": "RCA expira la",
+          "itp_date": "ITP expira la",
+          "rovinieta_date": "Rovinieta expira la",
+          "revizie_date": "Revizie scadenta la data",
+          "revizie_km": "Revizie scadenta la km",
+          "distributie_date": "Distributie scadenta la data",
+          "distributie_km": "Distributie scadenta la km"
+        }
+      },
+      "media": {
+        "title": "Poza si model 3D",
+        "description": "Poza actuala: {photo}\nModel 3D actual: {model_3d}\n\nIncarca un fisier nou pentru a inlocui, sau goleste campul URL pentru a elimina.",
+        "data": {
+          "photo_upload": "Incarca poza",
+          "model_3d_upload": "Incarca model 3D (.glb)",
+          "photo": "URL poza",
+          "model_3d": "URL model 3D"
+        }
+      },
+      "thresholds": {
+        "title": "Praguri de avertizare",
+        "data": {
+          "warn_days": "Avertizare cu cate zile inainte",
+          "warn_km": "Avertizare cu cati km inainte"
+        }
+      }
+    }
+  },
+  "selector": {
+    "fuel_type": {
+      "options": {
+        "benzina": "Benzina",
+        "diesel": "Diesel",
+        "gpl": "GPL",
+        "benzina_gpl": "Benzina + GPL",
+        "hibrid": "Hibrid",
+        "hibrid_plugin": "Hibrid plug-in",
+        "electric": "Electric",
+        "altul": "Altul"
+      }
+    },
+    "document": {
+      "options": {
+        "rca": "RCA",
+        "itp": "ITP",
+        "rovinieta": "Rovinieta",
+        "revizie": "Revizie",
+        "distributie": "Distributie"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "status": { "name": "Stare acte" },
+      "rca_days": { "name": "RCA" },
+      "itp_days": { "name": "ITP" },
+      "rovinieta_days": { "name": "Rovinieta" },
+      "revizie_days": { "name": "Revizie" },
+      "distributie_days": { "name": "Distributie" },
+      "make": { "name": "Marca" },
+      "model": { "name": "Model" },
+      "year": { "name": "An fabricatie" },
+      "color": { "name": "Culoare" },
+      "engine_capacity": { "name": "Capacitate motor" },
+      "fuel_type": { "name": "Combustibil" },
+      "license_plate": { "name": "Numar de inmatriculare" },
+      "vin": { "name": "Serie de sasiu" }
+    },
+    "binary_sensor": {
+      "attention": { "name": "Acte de rezolvat" },
+      "expired": { "name": "Acte expirate" }
+    },
+    "number": {
+      "mileage": { "name": "Kilometraj" },
+      "revizie_km": { "name": "Revizie la km" },
+      "distributie_km": { "name": "Distributie la km" }
+    },
+    "date": {
+      "rca_date": { "name": "Expirare RCA" },
+      "itp_date": { "name": "Expirare ITP" },
+      "rovinieta_date": { "name": "Expirare rovinieta" },
+      "revizie_date": { "name": "Scadenta revizie" },
+      "distributie_date": { "name": "Scadenta distributie" }
+    },
+    "image": {
+      "photo": { "name": "Poza" }
+    }
+  },
+  "services": {
+    "set_mileage": {
+      "name": "Seteaza kilometrajul",
+      "description": "Actualizeaza numarul de kilometri al vehiculului.",
+      "fields": {
+        "mileage": {
+          "name": "Kilometraj",
+          "description": "Valoarea curenta a odometrului."
+        }
+      }
+    },
+    "set_document": {
+      "name": "Seteaza un act",
+      "description": "Seteaza data de expirare si/sau kilometrajul scadent pentru un act.",
+      "fields": {
+        "document": { "name": "Act", "description": "Actul care se modifica." },
+        "date": { "name": "Data", "description": "Noua data de expirare." },
+        "km": {
+          "name": "Kilometraj scadent",
+          "description": "Doar pentru revizie si distributie."
+        }
+      }
+    },
+    "renew_document": {
+      "name": "Reinnoieste un act",
+      "description": "Prelungeste un act cu un numar de luni, pornind de la scadenta actuala daca este in viitor, altfel de la ziua de azi.",
+      "fields": {
+        "document": { "name": "Act", "description": "Actul reinnoit." },
+        "months": {
+          "name": "Luni",
+          "description": "Cu cate luni se prelungeste valabilitatea."
+        },
+        "interval_km": {
+          "name": "Interval km",
+          "description": "Doar pentru revizie si distributie: se adauga la kilometrajul curent."
+        }
+      }
+    },
+    "mark_service_done": {
+      "name": "Marcheaza lucrarea ca efectuata",
+      "description": "Inregistreaza o revizie sau o schimbare de distributie si calculeaza automat urmatoarea scadenta.",
+      "fields": {
+        "document": {
+          "name": "Lucrare",
+          "description": "Revizie sau distributie."
+        },
+        "mileage": {
+          "name": "Kilometraj la efectuare",
+          "description": "Daca lipseste, se foloseste kilometrajul curent."
+        },
+        "interval_months": {
+          "name": "Interval luni",
+          "description": "Peste cate luni este urmatoarea scadenta."
+        },
+        "interval_km": {
+          "name": "Interval km",
+          "description": "Peste cati km este urmatoarea scadenta."
+        }
+      }
+    }
+  }
+}

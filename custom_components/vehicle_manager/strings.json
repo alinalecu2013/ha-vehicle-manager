@@ -1,0 +1,233 @@
+{
+  "title": "Vehicle Manager",
+  "config": {
+    "abort": {
+      "already_configured": "A vehicle with this license plate already exists."
+    },
+    "step": {
+      "user": {
+        "title": "New vehicle",
+        "description": "Fill in the vehicle characteristics. The license plate must be unique.",
+        "data": {
+          "name": "Vehicle name",
+          "make": "Make",
+          "model": "Model",
+          "license_plate": "License plate",
+          "year": "Year of manufacture",
+          "mileage": "Mileage",
+          "color": "Color",
+          "engine_capacity": "Engine capacity",
+          "fuel_type": "Fuel type",
+          "vin": "VIN"
+        },
+        "data_description": {
+          "name": "How the vehicle appears in Home Assistant and in the card selector.",
+          "color": "A color name (e.g. Red, Metallic blue) or a hex code. Also used for the 3D model."
+        }
+      },
+      "documents": {
+        "title": "Documents and due dates",
+        "description": "Fill in the expiry dates. You can leave anything blank now and set it later straight from the UI.",
+        "data": {
+          "rca_date": "Insurance (RCA) expires on",
+          "itp_date": "Technical inspection (ITP) expires on",
+          "rovinieta_date": "Road tax (rovinieta) expires on",
+          "revizie_date": "Service due on",
+          "revizie_km": "Service due at km",
+          "distributie_date": "Timing belt due on",
+          "distributie_km": "Timing belt due at km"
+        },
+        "data_description": {
+          "revizie_km": "Absolute odometer reading at which the service becomes due.",
+          "distributie_km": "Absolute odometer reading at which the timing belt must be replaced."
+        }
+      },
+      "media": {
+        "title": "Photo and 3D model",
+        "description": "Upload a photo of the car. Optionally upload a 3D model (.glb or .gltf) that will be shown rotating in the card; without one, the card draws a stylized car in the vehicle color.",
+        "data": {
+          "photo_upload": "Upload photo",
+          "model_3d_upload": "Upload 3D model (.glb)",
+          "photo": "or photo URL",
+          "model_3d": "or 3D model URL"
+        },
+        "data_description": {
+          "photo": "Leave blank if you uploaded a file. /local/... paths are accepted.",
+          "model_3d": "Leave blank if you uploaded a file. /local/... paths are accepted."
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Edit vehicle",
+        "menu_options": {
+          "vehicle": "Vehicle characteristics",
+          "documents": "Documents and due dates",
+          "media": "Photo and 3D model",
+          "thresholds": "Warning thresholds"
+        }
+      },
+      "vehicle": {
+        "title": "Vehicle characteristics",
+        "data": {
+          "name": "Vehicle name",
+          "make": "Make",
+          "model": "Model",
+          "license_plate": "License plate",
+          "year": "Year of manufacture",
+          "mileage": "Mileage",
+          "color": "Color",
+          "engine_capacity": "Engine capacity",
+          "fuel_type": "Fuel type",
+          "vin": "VIN"
+        }
+      },
+      "documents": {
+        "title": "Documents and due dates",
+        "data": {
+          "rca_date": "Insurance (RCA) expires on",
+          "itp_date": "Technical inspection (ITP) expires on",
+          "rovinieta_date": "Road tax (rovinieta) expires on",
+          "revizie_date": "Service due on",
+          "revizie_km": "Service due at km",
+          "distributie_date": "Timing belt due on",
+          "distributie_km": "Timing belt due at km"
+        }
+      },
+      "media": {
+        "title": "Photo and 3D model",
+        "description": "Current photo: {photo}\nCurrent 3D model: {model_3d}\n\nUpload a new file to replace it, or clear the URL field to remove it.",
+        "data": {
+          "photo_upload": "Upload photo",
+          "model_3d_upload": "Upload 3D model (.glb)",
+          "photo": "Photo URL",
+          "model_3d": "3D model URL"
+        }
+      },
+      "thresholds": {
+        "title": "Warning thresholds",
+        "data": {
+          "warn_days": "Warn this many days ahead",
+          "warn_km": "Warn this many km ahead"
+        }
+      }
+    }
+  },
+  "selector": {
+    "fuel_type": {
+      "options": {
+        "benzina": "Petrol",
+        "diesel": "Diesel",
+        "gpl": "LPG",
+        "benzina_gpl": "Petrol + LPG",
+        "hibrid": "Hybrid",
+        "hibrid_plugin": "Plug-in hybrid",
+        "electric": "Electric",
+        "altul": "Other"
+      }
+    },
+    "document": {
+      "options": {
+        "rca": "Insurance (RCA)",
+        "itp": "Inspection (ITP)",
+        "rovinieta": "Road tax",
+        "revizie": "Service",
+        "distributie": "Timing belt"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "status": { "name": "Document status" },
+      "rca_days": { "name": "Insurance (RCA)" },
+      "itp_days": { "name": "Inspection (ITP)" },
+      "rovinieta_days": { "name": "Road tax" },
+      "revizie_days": { "name": "Service" },
+      "distributie_days": { "name": "Timing belt" },
+      "make": { "name": "Make" },
+      "model": { "name": "Model" },
+      "year": { "name": "Year of manufacture" },
+      "color": { "name": "Color" },
+      "engine_capacity": { "name": "Engine capacity" },
+      "fuel_type": { "name": "Fuel" },
+      "license_plate": { "name": "License plate" },
+      "vin": { "name": "VIN" }
+    },
+    "binary_sensor": {
+      "attention": { "name": "Documents need attention" },
+      "expired": { "name": "Expired documents" }
+    },
+    "number": {
+      "mileage": { "name": "Mileage" },
+      "revizie_km": { "name": "Service at km" },
+      "distributie_km": { "name": "Timing belt at km" }
+    },
+    "date": {
+      "rca_date": { "name": "Insurance expiry" },
+      "itp_date": { "name": "Inspection expiry" },
+      "rovinieta_date": { "name": "Road tax expiry" },
+      "revizie_date": { "name": "Service due date" },
+      "distributie_date": { "name": "Timing belt due date" }
+    },
+    "image": {
+      "photo": { "name": "Photo" }
+    }
+  },
+  "services": {
+    "set_mileage": {
+      "name": "Set mileage",
+      "description": "Updates the vehicle odometer value.",
+      "fields": {
+        "mileage": { "name": "Mileage", "description": "Current odometer value." }
+      }
+    },
+    "set_document": {
+      "name": "Set document",
+      "description": "Sets the expiry date and/or the due mileage for a document.",
+      "fields": {
+        "document": { "name": "Document", "description": "The document to change." },
+        "date": { "name": "Date", "description": "The new expiry date." },
+        "km": {
+          "name": "Due mileage",
+          "description": "Only for service and timing belt."
+        }
+      }
+    },
+    "renew_document": {
+      "name": "Renew document",
+      "description": "Extends a document by a number of months, starting from the current due date if it is in the future, otherwise from today.",
+      "fields": {
+        "document": { "name": "Document", "description": "The document to renew." },
+        "months": {
+          "name": "Months",
+          "description": "How many months the validity is extended by."
+        },
+        "interval_km": {
+          "name": "Mileage interval",
+          "description": "Only for service and timing belt: added to the current mileage."
+        }
+      }
+    },
+    "mark_service_done": {
+      "name": "Mark work as done",
+      "description": "Records a service or timing belt replacement and computes the next due date automatically.",
+      "fields": {
+        "document": { "name": "Work", "description": "Service or timing belt." },
+        "mileage": {
+          "name": "Mileage at completion",
+          "description": "Falls back to the current mileage when omitted."
+        },
+        "interval_months": {
+          "name": "Month interval",
+          "description": "How many months until the next due date."
+        },
+        "interval_km": {
+          "name": "Mileage interval",
+          "description": "How many km until the next due date."
+        }
+      }
+    }
+  }
+}

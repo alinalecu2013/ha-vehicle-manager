@@ -1,0 +1,14 @@
+# Copii vechi / arhive locale (sursa unica: custom_components/vehicle_manager)
+/vehicle_manager/
+*.zip
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Editor / sistem
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+.DS_Store
