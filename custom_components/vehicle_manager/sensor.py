@@ -163,6 +163,8 @@ class VehicleDocumentSensor(VehicleEntity, SensorEntity):
         document = self._document
         attributes: dict[str, Any] = {
             "document": document["label"],
+            # cheia folosita de servicii (ex. renew_document), pentru automatizari
+            "document_key": self._doc,
             "expira_la": document["date"],
             "stare": document["status"],
         }

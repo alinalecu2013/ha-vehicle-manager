@@ -173,6 +173,9 @@
     },
     "image": {
       "photo": { "name": "Poza" }
+    },
+    "calendar": {
+      "deadlines": { "name": "Scadente" }
     }
   },
   "services": {

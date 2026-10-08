@@ -173,6 +173,9 @@
     },
     "image": {
       "photo": { "name": "Photo" }
+    },
+    "calendar": {
+      "deadlines": { "name": "Deadlines" }
     }
   },
   "services": {

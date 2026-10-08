@@ -6,9 +6,9 @@ from datetime import timedelta
 from typing import Final
 
 DOMAIN: Final = "vehicle_manager"
-VERSION: Final = "1.3.0"
+VERSION: Final = "1.4.0"
 
-PLATFORMS: Final = ["sensor", "binary_sensor", "number", "date", "image"]
+PLATFORMS: Final = ["sensor", "binary_sensor", "number", "date", "image", "calendar"]
 
 UPDATE_INTERVAL: Final = timedelta(minutes=15)
 

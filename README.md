@@ -153,15 +153,48 @@ Daca three.js nu poate fi incarcat si vehiculul are poza, cardul comuta automat 
 | Platforma | Entitate | Rol |
 | --- | --- | --- |
 | `sensor` | Stare acte | Starea cea mai grava; toate datele pentru card in atribute. |
-| `sensor` | RCA, ITP, Rovinieta, Revizie, Distributie | Zile ramase (negativ = expirat). |
+| `sensor` | RCA, ITP, Rovinieta, Revizie, Distributie | Zile ramase (negativ = expirat); atributul `document_key` e cheia actului pentru servicii. |
 | `sensor` | Marca, Model, An, Culoare, Capacitate, Combustibil, Nr. inmatriculare, VIN | Caracteristici (diagnostic). |
 | `number` | Kilometraj, Revizie la km, Distributie la km | Editabile din interfata. |
 | `date` | Expirare RCA / ITP / rovinieta, Scadenta revizie / distributie | Editabile din interfata. |
 | `binary_sensor` | Acte de rezolvat, Acte expirate | Pentru automatizari si notificari. |
 | `image` | Poza | Poza vehiculului. |
+| `calendar` | Scadente | Un eveniment pe toata ziua pentru fiecare act cu data de scadenta. |
 
 Pragurile de avertizare (implicit 30 de zile si 1000 km) se configureaza per vehicul din
 **Configurare &rsaquo; Praguri de avertizare**.
+
+## Calendar
+
+Fiecare vehicul are o entitate `calendar.<vehicul>_scadente` cu toate actele care au o
+data de scadenta (RCA, ITP, rovinieta si revizia/distributia, daca au data). Apare in
+pagina **Calendar** din Home Assistant si poate fi adaugata intr-un card Calendar.
+Actele urmarite doar pe kilometraj nu au o zi anume, deci nu apar in calendar.
+
+## Notificari pe telefon
+
+Blueprint-ul **Vehicle Manager: notificari pentru acte** trimite o notificare in
+aplicatia Home Assistant Companion cand un act se apropie de scadenta:
+
+[![Importa blueprint-ul](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/alinalecu2013/ha-vehicle-manager/blob/main/blueprints/automation/vehicle_manager/notificare_acte.yaml)
+
+1. Apasa butonul de mai sus (sau **Setari &rsaquo; Automatizari &rsaquo; Blueprints &rsaquo;
+   Importa blueprint** si lipeste adresa `https://github.com/alinalecu2013/ha-vehicle-manager/blob/main/blueprints/automation/vehicle_manager/notificare_acte.yaml`).
+2. **Creeaza automatizare** din blueprint: alege vehiculele, telefonul, ora si cu cate
+   zile inainte vrei notificarile (implicit 30, 7, 1 zi si in ziua scadentei).
+
+Notificarea are un buton:
+
+- **Am reinnoit (+12 luni)** pentru RCA, ITP si rovinieta: prelungeste actul
+  (`renew_document`) cu numarul de luni ales in blueprint.
+- **Am facut-o** pentru revizie si distributie: inregistreaza lucrarea la kilometrajul
+  curent (`mark_service_done`) si calculeaza urmatoarea scadenta din intervalele setate
+  in blueprint (implicit 15.000 km / 12 luni pentru revizie si 90.000 km / 60 de luni
+  pentru distributie; verifica valorile in cartea service-ului masinii).
+
+Dupa apasare, notificarea dispare de pe telefon. Optional, actele expirate sunt
+reamintite zilnic. Pentru mai multe telefoane, creeaza cate o automatizare; fiecare
+trateaza doar butoanele propriilor notificari.
 
 ## Servicii
 

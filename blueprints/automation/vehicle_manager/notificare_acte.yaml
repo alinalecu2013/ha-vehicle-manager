@@ -1,0 +1,239 @@
+blueprint:
+  name: "Vehicle Manager: notificari pentru acte"
+  description: >
+    Trimite pe telefon o notificare cand un act (RCA, ITP, rovinieta, revizie,
+    distributie) se apropie de scadenta. Notificarea are un buton care
+    reinnoieste actul direct din telefon: RCA, ITP si rovinieta se prelungesc cu
+    numarul de luni ales, iar revizia si distributia se marcheaza ca facute
+    (urmatoarea scadenta se calculeaza automat).
+  domain: automation
+  source_url: https://github.com/alinalecu2013/ha-vehicle-manager/blob/main/blueprints/automation/vehicle_manager/notificare_acte.yaml
+  input:
+    vehicles:
+      name: Vehicule
+      description: Vehiculele urmarite.
+      selector:
+        device:
+          integration: vehicle_manager
+          multiple: true
+    notify_device:
+      name: Telefon
+      description: Telefonul (aplicatia Home Assistant Companion) care primeste notificarile.
+      selector:
+        device:
+          integration: mobile_app
+    days_before:
+      name: Cand se trimite
+      description: Cu cate zile inainte de scadenta (0 = in ziua scadentei).
+      default: ["30", "7", "1", "0"]
+      selector:
+        select:
+          multiple: true
+          custom_value: true
+          options:
+            - label: Cu 60 de zile inainte
+              value: "60"
+            - label: Cu 30 de zile inainte
+              value: "30"
+            - label: Cu 14 zile inainte
+              value: "14"
+            - label: Cu 7 zile inainte
+              value: "7"
+            - label: Cu 3 zile inainte
+              value: "3"
+            - label: Cu o zi inainte
+              value: "1"
+            - label: In ziua scadentei
+              value: "0"
+    repeat_expired:
+      name: Aminteste zilnic actele expirate
+      description: Trimite cate o notificare in fiecare zi cat timp un act e expirat.
+      default: true
+      selector:
+        boolean:
+    notify_time:
+      name: Ora notificarii
+      default: "09:00:00"
+      selector:
+        time:
+    renew_months:
+      name: Prelungire RCA / ITP / rovinieta
+      description: Cu cate luni se prelungeste actul cand apesi butonul din notificare.
+      default: 12
+      selector:
+        number:
+          min: 1
+          max: 60
+          unit_of_measurement: luni
+          mode: box
+    service_interval:
+      name: Interval revizie
+      description: Dupa "Am facut-o", urmatoarea revizie e peste atatia km (sau luni, ce vine prima).
+      default: 15000
+      selector:
+        number:
+          min: 1000
+          max: 60000
+          step: 500
+          unit_of_measurement: km
+          mode: box
+    service_months:
+      name: Interval revizie (luni)
+      default: 12
+      selector:
+        number:
+          min: 1
+          max: 48
+          unit_of_measurement: luni
+          mode: box
+    timing_interval:
+      name: Interval distributie
+      description: Verifica in cartea service-ului; de obicei 60.000 - 120.000 km.
+      default: 90000
+      selector:
+        number:
+          min: 10000
+          max: 300000
+          step: 5000
+          unit_of_measurement: km
+          mode: box
+    timing_months:
+      name: Interval distributie (luni)
+      default: 60
+      selector:
+        number:
+          min: 6
+          max: 120
+          unit_of_measurement: luni
+          mode: box
+    open_path:
+      name: Pagina deschisa la atingerea notificarii
+      description: Ex. /lovelace/masini. Lasa gol pentru pagina principala.
+      default: ""
+      selector:
+        text:
+
+mode: queued
+max: 10
+
+triggers:
+  - trigger: time
+    at: !input notify_time
+    id: check
+  - trigger: event
+    event_type: mobile_app_notification_action
+    id: action
+
+variables:
+  vehicles: !input vehicles
+  days_before: !input days_before
+  repeat_expired: !input repeat_expired
+  renew_months: !input renew_months
+  service_interval: !input service_interval
+  service_months: !input service_months
+  timing_interval: !input timing_interval
+  timing_months: !input timing_months
+  open_path: !input open_path
+  # Prefixul butoanelor include automatizarea, ca un buton sa fie tratat doar de
+  # automatizarea care a trimis notificarea (pot exista mai multe, ex. 2 telefoane).
+  action_prefix: "VM_RENEW|{{ this.entity_id }}|"
+  vehicle_entities: >
+    {% set ns = namespace(items=[]) %}
+    {% for dev in vehicles %}
+      {% set ns.items = ns.items + device_entities(dev) | list %}
+    {% endfor %}
+    {{ ns.items }}
+
+actions:
+  - choose:
+      # ------------------------------------------------------------ verificare
+      - conditions:
+          - condition: trigger
+            id: check
+        sequence:
+          - variables:
+              due: >
+                {% set ns = namespace(items=[]) %}
+                {% for dev in vehicles %}
+                  {% for entity in device_entities(dev)
+                       if entity.startswith('sensor.') and state_attr(entity, 'document_key') %}
+                    {% set days = states(entity) | int(none) %}
+                    {% if days is not none
+                          and ((days | string) in days_before or (repeat_expired and days < 0)) %}
+                      {% set ns.items = ns.items + [{
+                        'entity': entity,
+                        'days': days,
+                        'key': state_attr(entity, 'document_key'),
+                        'label': state_attr(entity, 'document'),
+                        'date': state_attr(entity, 'expira_la'),
+                        'vehicle': device_attr(dev, 'name'),
+                      }] %}
+                    {% endif %}
+                  {% endfor %}
+                {% endfor %}
+                {{ ns.items }}
+          - repeat:
+              for_each: "{{ due }}"
+              sequence:
+                - device_id: !input notify_device
+                  domain: mobile_app
+                  type: notify
+                  title: "{{ repeat.item.label }} · {{ repeat.item.vehicle }}"
+                  message: >
+                    {% set d = repeat.item.days %}
+                    {% set data = (repeat.item.date | as_datetime).strftime('%d.%m.%Y')
+                                  if repeat.item.date else '' %}
+                    {% if d > 1 %}Expira in {{ d }} zile ({{ data }}).
+                    {% elif d == 1 %}Expira maine ({{ data }}).
+                    {% elif d == 0 %}Expira azi.
+                    {% else %}Expirat de {{ -d }} {{ 'zi' if d == -1 else 'zile' }} ({{ data }}).
+                    {% endif %}
+                  data:
+                    tag: "vehicle_manager_{{ repeat.item.entity }}"
+                    url: "{{ open_path if open_path else '/' }}"
+                    clickAction: "{{ open_path if open_path else '/' }}"
+                    actions:
+                      - action: "{{ action_prefix ~ repeat.item.entity }}"
+                        title: >
+                          {{ 'Am facut-o' if repeat.item.key in ['revizie', 'distributie']
+                             else 'Am reinnoit (+' ~ renew_months ~ ' luni)' }}
+
+      # ------------------------------------------------- butonul din notificare
+      - conditions:
+          - condition: trigger
+            id: action
+          - condition: template
+            value_template: >
+              {{ trigger.event.data.action is string
+                 and trigger.event.data.action.startswith(action_prefix)
+                 and trigger.event.data.action[action_prefix | length:] in vehicle_entities }}
+        sequence:
+          - variables:
+              entity: "{{ trigger.event.data.action[action_prefix | length:] }}"
+              key: "{{ state_attr(entity, 'document_key') }}"
+          - if:
+              - condition: template
+                value_template: "{{ key in ['revizie', 'distributie'] }}"
+            then:
+              - action: vehicle_manager.mark_service_done
+                target:
+                  entity_id: "{{ entity }}"
+                data:
+                  document: "{{ key }}"
+                  interval_km: >
+                    {{ (timing_interval if key == 'distributie' else service_interval) | int }}
+                  interval_months: >
+                    {{ (timing_months if key == 'distributie' else service_months) | int }}
+            else:
+              - action: vehicle_manager.renew_document
+                target:
+                  entity_id: "{{ entity }}"
+                data:
+                  document: "{{ key }}"
+                  months: "{{ renew_months | int }}"
+          - device_id: !input notify_device
+            domain: mobile_app
+            type: notify
+            message: clear_notification
+            data:
+              tag: "vehicle_manager_{{ entity }}"
