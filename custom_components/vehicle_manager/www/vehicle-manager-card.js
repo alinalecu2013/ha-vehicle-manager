@@ -2341,5 +2341,5 @@ if (!window.customCards.some((card) => card.type === "vehicle-manager-card")) wi
   description:
     "Card futurist pentru vehicule: model 3D rotativ, caracteristici si acte (RCA, ITP, rovinieta, revizie, distributie).",
   preview: true,
-  documentationURL: "https://github.com/victorcaileanu/ha-vehicle-manager",
+  documentationURL: "https://github.com/alinalecu2013/ha-vehicle-manager",
 });

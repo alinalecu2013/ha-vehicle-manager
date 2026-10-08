@@ -15,15 +15,33 @@ combustibil folosit, numar de inmatriculare, plus VIN (opțional).
 
 ## Instalare
 
+### Prin HACS (recomandat)
+
+[![Deschide in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=alinalecu2013&repository=ha-vehicle-manager&category=integration)
+
+1. **HACS &rsaquo; &vellip; (dreapta sus) &rsaquo; Depozite personalizate** (Custom repositories).
+2. Depozit: `https://github.com/alinalecu2013/ha-vehicle-manager`, tip: **Integration**, apoi **Adauga**.
+3. Cauta **Vehicle Manager** in HACS si apasa **Descarca**.
+4. Restarteaza Home Assistant.
+5. **Setari &rsaquo; Dispozitive si servicii &rsaquo; Adauga integrare &rsaquo; Vehicle Manager**.
+   Repeta pentru fiecare masina. Un vehicul = un config entry = un device.
+
+Actualizarile apar in HACS (si in **Setari &rsaquo; Actualizari**); dupa fiecare actualizare
+restarteaza Home Assistant.
+
+### Manual
+
 1. Copiaza folderul `custom_components/vehicle_manager` in `config/custom_components/`
    din Home Assistant.
-2. Restarteaza Home Assistant.
-3. **Setari &rsaquo; Dispozitive si servicii &rsaquo; Adauga integrare &rsaquo; Vehicle Manager**.
-4. Repeta pasul 3 pentru fiecare masina. Un vehicul = un config entry = un device.
+2. Restarteaza Home Assistant si continua cu pasul 5 de mai sus.
 
-Cardul se inregistreaza automat ca resursa frontend (`/vehicle_manager_files/vehicle-manager-card.js`) —
-nu trebuie adaugat manual in **Setari &rsaquo; Dashboards &rsaquo; Resurse**. Daca totusi nu apare,
-goleste cache-ul browserului; in log vei vedea un avertisment daca inregistrarea automata a eșuat.
+### Cardul se incarca singur
+
+Integrarea inregistreaza automat cardul (`/vehicle_manager_files/vehicle-manager-card.js`),
+cu versiunea in URL, deci **nu** trebuie adaugat in **Setari &rsaquo; Dashboards &rsaquo; Resurse**.
+Daca ai adaugat anterior resursa manual, sterge-o. Daca dupa o actualizare cardul nu apare pe
+telefon, in aplicatia Companion: **Setari &rsaquo; Companion app &rsaquo; Depanare &rsaquo;
+Reset frontend cache**.
 
 ## Cardul
 

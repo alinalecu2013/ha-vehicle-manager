@@ -1,13 +1,13 @@
 {
   "domain": "vehicle_manager",
   "name": "Vehicle Manager",
-  "codeowners": ["@victorcaileanu"],
+  "codeowners": ["@alinalecu2013"],
   "config_flow": true,
   "dependencies": ["http", "frontend", "file_upload", "websocket_api"],
-  "documentation": "https://github.com/victorcaileanu/ha-vehicle-manager",
+  "documentation": "https://github.com/alinalecu2013/ha-vehicle-manager",
   "integration_type": "device",
   "iot_class": "local_push",
-  "issue_tracker": "https://github.com/victorcaileanu/ha-vehicle-manager/issues",
+  "issue_tracker": "https://github.com/alinalecu2013/ha-vehicle-manager/issues",
   "requirements": [],
   "version": "1.2.0"
 }
