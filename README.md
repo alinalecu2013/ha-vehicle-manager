@@ -3,6 +3,16 @@
 Integrare + card Lovelace pentru evidenta actelor si caracteristicilor auto, cu suport
 pentru mai multe vehicule, poza per masina si un model 3D rotativ in card.
 
+![Vehicle Manager Card](https://raw.githubusercontent.com/alinalecu2013/ha-vehicle-manager/main/images/card.png)
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/alinalecu2013/ha-vehicle-manager/main/images/phone.png" alt="Cardul pe telefon (tema Sunset)" width="300">
+  &nbsp;
+  <img src="https://raw.githubusercontent.com/alinalecu2013/ha-vehicle-manager/main/images/themes.png" alt="Meniul Themes" width="520">
+</p>
+
+<sub>Capturi cu date demonstrative.</sub>
+
 ## Ce urmareste
 
 **Acte si scadente:** RCA, ITP, rovinieta, revizie, distributie.
