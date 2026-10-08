@@ -6,7 +6,7 @@
  * model 3D rotativ in centru, acte in dreapta.
  */
 
-const CARD_VERSION = "1.4.0";
+const CARD_VERSION = "1.5.0";
 const DEFAULT_THREE = "https://esm.sh/three@0.160.0";
 
 console.info(
@@ -17,6 +17,9 @@ console.info(
 
 /* Orizont pentru inelul de progres cand documentul este exprimat in km. */
 const KM_HORIZON = { revizie: 15000, distributie: 120000 };
+
+/* Ordinea in modul compact: intai ce e expirat, apoi ce expira curand. */
+const STATUS_RANK = { expired: 0, warning: 1, ok: 2, unknown: 3 };
 
 const STATUS_LABEL = {
   ok: "Valabil",
@@ -548,6 +551,15 @@ class CarViewer {
     this.renderer.setSize(width, height, false);
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
+
+    /*
+     * Intr-o scena ingusta (ex. modul compact pe telefon) masina ar iesi din cadru:
+     * camera se departeaza proportional, iar ceata se muta odata cu ea.
+     */
+    const fit = Math.max(1, 1.2 / this.camera.aspect);
+    this.radius = 8.2 * fit;
+    this.scene.fog.near = 7 + this.radius - 8.2;
+    this.scene.fog.far = 17 + this.radius - 8.2;
   }
 
   _loop(now) {
@@ -1403,10 +1415,83 @@ ha-card::before {
 .btn.danger { margin-right: auto; color: var(--vm-bad); }
 .btn:disabled { opacity: .5; cursor: progress; }
 
+/* ---- mod compact ---- */
+.urgent { display: none; }
+.open-btn { display: none; }
+
+.vm.compact .specs,
+.vm.compact .docs,
+.vm.compact .foot,
+.vm.compact .themes,
+.vm.compact .themes-btn,
+.vm.compact .settings,
+.vm.compact .hud,
+.vm.compact .bracket,
+.vm.compact .stage-actions { display: none !important; }
+
+.vm.compact .top { padding-bottom: calc(10px * var(--vm-sp)); gap: 10px; }
+.vm.compact .top[data-nav="true"] .brand { cursor: pointer; }
+.vm.compact .top[data-nav="true"] .open-btn { display: inline-flex; }
+/* numele ocupa spatiul ramas (se taie cu "…"), ca antetul sa ramana pe un rand */
+.vm.compact .brand { flex: 1 1 0; min-width: 0; }
+.vm.compact .top-spacer { display: none; }
+.vm.compact .titles .s { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vm.compact .plate { font-size: calc(11px * var(--vm-fs)); padding: 6px 8px; }
+.vm.compact .picker { order: 9; flex: 1 1 100%; min-width: 0; }
+
+.vm.compact .body {
+  grid-template-columns: minmax(120px, 0.9fr) minmax(0, 1.4fr);
+  gap: calc(10px * var(--vm-sp));
+  padding-top: calc(10px * var(--vm-sp));
+}
+.vm.compact .stage { order: 0; min-height: 132px; }
+.vm.compact .urgent {
+  display: flex; flex-direction: column; gap: calc(6px * var(--vm-sp));
+  padding: calc(8px * var(--vm-sp));
+}
+
+.u-item {
+  display: grid; grid-template-columns: 10px minmax(0, 1fr); align-items: center; gap: 8px;
+  width: 100%; padding: calc(7px * var(--vm-sp)) 8px;
+  border-radius: calc(9px * var(--vm-r)); cursor: pointer;
+  text-align: left; color: inherit; font: inherit;
+  background: color-mix(in srgb, var(--vm-bg) 55%, transparent);
+  border: 1px solid var(--vm-line);
+}
+.u-item:hover { background: color-mix(in srgb, var(--vm-accent) 8%, transparent); }
+.u-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--vm-dim); }
+.u-item[data-status="ok"] .u-dot { background: var(--vm-ok); }
+.u-item[data-status="warning"] .u-dot { background: var(--vm-warn); box-shadow: 0 0 calc(8px * var(--vm-glow)) var(--vm-warn); }
+.u-item[data-status="expired"] .u-dot { background: var(--vm-bad); box-shadow: 0 0 calc(8px * var(--vm-glow)) var(--vm-bad); }
+.u-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.u-name {
+  font: calc(9.5px * var(--vm-fs))/1.2 var(--vm-mono);
+  letter-spacing: .12em; text-transform: uppercase; color: var(--vm-dim);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.u-val {
+  font-size: calc(13px * var(--vm-fs)); font-weight: 650;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.u-item[data-status="warning"] .u-val { color: var(--vm-warn); }
+.u-item[data-status="expired"] .u-val { color: var(--vm-bad); }
+.u-all-ok {
+  display: flex; align-items: center; gap: 8px;
+  font-size: calc(12px * var(--vm-fs)); color: var(--vm-ok);
+}
+.u-all-ok ha-icon { --mdc-icon-size: 18px; }
+
 /* ---- responsive ---- */
 @media (max-width: 880px) {
   .body { grid-template-columns: 1fr; }
   .stage { order: -1; min-height: calc(var(--vm-stage-h) * 0.8); }
+}
+@media (max-width: 880px) {
+  .vm.compact .body { grid-template-columns: minmax(110px, 0.9fr) minmax(0, 1.4fr); }
+  .vm.compact .stage { order: 0; min-height: 132px; }
+}
+@media (max-width: 340px) {
+  .vm.compact .body { grid-template-columns: 1fr; }
 }
 @media (max-width: 480px) {
   .th-row.range { grid-template-columns: 1fr auto; }
@@ -1452,12 +1537,15 @@ class VehicleManagerCard extends HTMLElement {
       rotate_speed: 0.35,
       show_photo_toggle: true,
       show_theme_button: true,
+      compact: false,
+      compact_items: 3,
       three_src: DEFAULT_THREE,
       ...config,
     };
     this._signature = null;
     if (this._built) {
       this._el.themeBtn.hidden = this._config.show_theme_button === false;
+      this._applyLayout();
       this._applyTheme();
       this._viewer?.setOptions({
         autoRotate: this._config.auto_rotate !== false,
@@ -1468,7 +1556,7 @@ class VehicleManagerCard extends HTMLElement {
   }
 
   getCardSize() {
-    return 14;
+    return this._config?.compact ? 4 : 14;
   }
 
   set hass(hass) {
@@ -1575,6 +1663,9 @@ class VehicleManagerCard extends HTMLElement {
           <button class="icon-btn settings" title="Editeaza vehiculele">
             <ha-icon icon="mdi:cog-outline"></ha-icon>
           </button>
+          <button class="icon-btn open-btn" title="Deschide pagina vehiculului">
+            <ha-icon icon="mdi:chevron-right"></ha-icon>
+          </button>
         </header>
 
         <section class="themes" hidden></section>
@@ -1600,6 +1691,8 @@ class VehicleManagerCard extends HTMLElement {
               <button class="chip view-photo" aria-pressed="false">Poza</button>
             </div>
           </section>
+
+          <section class="panel urgent"></section>
 
           <section class="panel docs">
             <h3>Acte si scadente</h3>
@@ -1627,6 +1720,10 @@ class VehicleManagerCard extends HTMLElement {
       select: card.querySelector("select"),
       plate: card.querySelector(".plate"),
       settings: card.querySelector(".settings"),
+      top: card.querySelector(".top"),
+      brand: card.querySelector(".brand"),
+      openBtn: card.querySelector(".open-btn"),
+      urgent: card.querySelector(".urgent"),
       themeBtn: card.querySelector(".themes-btn"),
       themes: card.querySelector(".themes"),
       cardBg: card.querySelector(".card-bg"),
@@ -1658,6 +1755,16 @@ class VehicleManagerCard extends HTMLElement {
     this._el.view3d.addEventListener("click", () => this._setPhotoMode(false));
     this._el.viewPhoto.addEventListener("click", () => this._setPhotoMode(true));
 
+    /* in modul compact, numele si sageata duc la pagina cu cardul complet */
+    const openPage = () => {
+      if (this._config.compact && this._config.navigation_path) {
+        navigate(this._config.navigation_path);
+      }
+    };
+    this._el.brand.addEventListener("click", openPage);
+    this._el.openBtn.addEventListener("click", openPage);
+    this._applyLayout();
+
     this._el.themeBtn.hidden = this._config.show_theme_button === false;
     this._el.themeBtn.addEventListener("click", () =>
       this._el.themes.hidden ? this._openThemes() : this._closeThemes()
@@ -1666,6 +1773,13 @@ class VehicleManagerCard extends HTMLElement {
     this._applyTheme();
     this._built = true;
     this._startViewer();
+  }
+
+  _applyLayout() {
+    const compact = Boolean(this._config.compact);
+    this._el.root.classList.toggle("compact", compact);
+    this._el.top.dataset.nav = String(compact && Boolean(this._config.navigation_path));
+    if (compact && !this._el.themes.hidden) this._closeThemes();
   }
 
   /* --------------------------------------------------------------- */
@@ -2140,6 +2254,9 @@ class VehicleManagerCard extends HTMLElement {
       )
     );
 
+    /* --- acte urgente (modul compact) --- */
+    this._renderUrgent(documents, entities);
+
     /* --- scena --- */
     this._currentPhoto = attributes.photo || null;
     this._viewer?.setVehicle({
@@ -2160,6 +2277,65 @@ class VehicleManagerCard extends HTMLElement {
     el.footRight.textContent = `prag ${attributes.warn_days}z / ${formatNumber(
       attributes.warn_km
     )}km`;
+  }
+
+  _renderUrgent(documents, entities) {
+    const limit = clamp(Math.round(Number(this._config.compact_items) || 3), 1, 5);
+    /*
+     * In ordinea urgentei. La aceeasi stare decide timpul ramas; actele urmarite
+     * doar pe km sunt convertite grosier in zile (~50 km/zi) ca sa poata fi comparate.
+     */
+    const remaining = (d) =>
+      d.days ?? (d.km_remaining !== null && d.km_remaining !== undefined ? d.km_remaining / 50 : Infinity);
+    const items = Object.values(documents)
+      .filter((d) => d.status !== "unknown")
+      .sort(
+        (a, b) =>
+          (STATUS_RANK[a.status] ?? 9) - (STATUS_RANK[b.status] ?? 9) || remaining(a) - remaining(b)
+      )
+      .slice(0, limit);
+
+    const nodes = items.map((document_) => {
+      const node = document.createElement("button");
+      node.type = "button";
+      node.className = "u-item";
+      node.dataset.status = document_.status;
+      node.innerHTML = `<span class="u-dot"></span><span class="u-text"><span class="u-name"></span><span class="u-val"></span></span>`;
+      node.querySelector(".u-name").textContent = document_.label;
+      node.querySelector(".u-val").textContent = this._shortRemaining(document_);
+      const entityId =
+        entities[`${document_.key}_date`] || entities[`${document_.key}_km`] || null;
+      node.addEventListener("click", () => moreInfo(this, entityId));
+      return node;
+    });
+
+    if (!items.some((d) => d.status === "warning" || d.status === "expired")) {
+      const ok = document.createElement("div");
+      ok.className = "u-all-ok";
+      ok.innerHTML = `<ha-icon icon="mdi:shield-check"></ha-icon><span>Toate actele sunt in regula</span>`;
+      nodes.unshift(ok);
+    }
+    if (!items.length) {
+      const empty = document.createElement("div");
+      empty.className = "u-name";
+      empty.textContent = "Nicio scadenta completata";
+      nodes.push(empty);
+    }
+    this._el.urgent.replaceChildren(...nodes);
+  }
+
+  _shortRemaining(document_) {
+    const { days, km_remaining: km } = document_;
+    if (days !== null && days !== undefined) {
+      if (days < 0) return `expirat de ${Math.abs(days)} z`;
+      if (days === 0) return "azi";
+      if (days === 1) return "maine";
+      return `${days} zile`;
+    }
+    if (km !== null && km !== undefined) {
+      return km < 0 ? `depasit ${formatNumber(Math.abs(km))} km` : `${formatNumber(km)} km`;
+    }
+    return "—";
   }
 
   _renderSpec(row, vehicle, entities) {
@@ -2290,6 +2466,15 @@ const EDITOR_SCHEMA = [
     selector: { number: { min: 0, max: 1.5, step: 0.05, mode: "slider" } },
   },
   { name: "show_theme_button", selector: { boolean: {} } },
+  {
+    type: "grid",
+    name: "",
+    schema: [
+      { name: "compact", selector: { boolean: {} } },
+      { name: "compact_items", selector: { number: { min: 1, max: 5, mode: "box" } } },
+    ],
+  },
+  { name: "navigation_path", selector: { navigation: {} } },
   { name: "three_src", selector: { text: {} } },
 ];
 
@@ -2300,6 +2485,9 @@ const EDITOR_LABELS = {
   show_photo_toggle: "Buton comutare poza",
   rotate_speed: "Viteza de rotire",
   show_theme_button: "Buton Themes (culorile se aleg din card)",
+  compact: "Mod compact (pentru pagina principala)",
+  compact_items: "Acte afisate in modul compact",
+  navigation_path: "Pagina deschisa din modul compact (ex. /lovelace/masini)",
   three_src: "Sursa three.js",
 };
 

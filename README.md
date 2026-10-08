@@ -84,6 +84,9 @@ listeaza in meniul drop-down din partea de sus.
 | `rotate_speed` | `0.35` | Radiani pe secunda. |
 | `show_photo_toggle` | `true` | Butonul `3D` / `Poza` din scena. |
 | `show_theme_button` | `true` | Arata butonul **Themes** din bara de sus. |
+| `compact` | `false` | Mod compact pentru pagina principala (vezi mai jos). |
+| `compact_items` | `3` | Cate acte se afiseaza in modul compact (1 - 5). |
+| `navigation_path` | - | In modul compact, pagina deschisa la atingerea numelui (ex. `/lovelace/masini`). |
 | `accent` | `#00e5ff` | Culoarea accent (ignorata dupa ce salvezi o tema din **Themes**). |
 | `accent2` | `#ff2bd6` | Culoarea accent secundara (idem). |
 | `three_src` | `https://esm.sh/three@0.160.0` | Sursa bibliotecii three.js. |
@@ -98,6 +101,26 @@ accent: "#7cf5c0"
 accent2: "#ffa63d"
 rotate_speed: 0.25
 ```
+
+### Mod compact
+
+Varianta mica a cardului, potrivita pentru pagina principala de pe telefon: numele si
+starea masinii, scena 3D (sau poza) si actele cele mai urgente (intai cele expirate,
+apoi cele care expira curand, apoi urmatoarele scadente). Panourile de caracteristici,
+lista completa de acte si butoanele Themes / setari sunt ascunse; tema salvata se aplica
+in continuare.
+
+<p align="center"><img src="https://raw.githubusercontent.com/alinalecu2013/ha-vehicle-manager/main/images/compact.png" alt="Modul compact pe telefon" width="380"></p>
+
+```yaml
+type: custom:vehicle-manager-card
+compact: true
+compact_items: 3
+navigation_path: /lovelace/masini   # optional: pagina cu cardul complet
+```
+
+Atingerea unui act deschide data lui, ca in cardul complet. Cu `navigation_path`,
+atingerea numelui masinii (sau a sagetii) deschide pagina indicata.
 
 ### Themes
 
