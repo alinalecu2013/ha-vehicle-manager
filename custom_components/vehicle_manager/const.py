@@ -6,7 +6,7 @@ from datetime import timedelta
 from typing import Final
 
 DOMAIN: Final = "vehicle_manager"
-VERSION: Final = "1.2.1"
+VERSION: Final = "1.3.0"
 
 PLATFORMS: Final = ["sensor", "binary_sensor", "number", "date", "image"]
 
@@ -15,6 +15,8 @@ UPDATE_INTERVAL: Final = timedelta(minutes=15)
 # Resurse statice / frontend
 URL_BASE: Final = "/vehicle_manager_files"
 CARD_FILENAME: Final = "vehicle-manager-card.js"
+# Depozitul HACS separat al cardului (instalat in config/www/community/<repo>)
+HACS_CARD_REPO: Final = "vehicle-manager-card"
 MEDIA_DIRNAME: Final = "vehicle_manager"
 
 # --- Caracteristici vehicul ---

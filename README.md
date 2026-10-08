@@ -35,6 +35,14 @@ restarteaza Home Assistant.
    din Home Assistant.
 2. Restarteaza Home Assistant si continua cu pasul 5 de mai sus.
 
+### Cardul in HACS (optional)
+
+Cardul are si un depozit HACS separat, in categoria **Dashboard**:
+[alinalecu2013/vehicle-manager-card](https://github.com/alinalecu2013/vehicle-manager-card).
+Daca il instalezi de acolo, il vezi si il actualizezi separat in HACS, iar integrarea
+detecteaza instalarea (folderul `config/www/community/vehicle-manager-card/`) si nu mai
+incarca propria copie. Fara el, integrarea incarca automat cardul inclus.
+
 ### Cardul se incarca singur
 
 Integrarea inregistreaza automat cardul (`/vehicle_manager_files/vehicle-manager-card.js`),
@@ -172,6 +180,12 @@ automation:
 ```
 
 ## Detalii de implementare
+
+- Sursa cardului este `custom_components/vehicle_manager/www/vehicle-manager-card.js`.
+  La o versiune noua: actualizeaza versiunea in `const.py`, `manifest.json` si
+  `CARD_VERSION` din card, publica release-ul integrarii, apoi ruleaza
+  `scripts/publica-card.sh`, care copiaza cardul in depozitul HACS al cardului si face
+  release-ul cu aceeasi versiune.
 
 - Sursa de adevar pentru fiecare vehicul este `entry.options`. Modificarile din entitati,
   din servicii sau din fluxul de opțiuni se salveaza acolo si recalculeaza starea fara reload

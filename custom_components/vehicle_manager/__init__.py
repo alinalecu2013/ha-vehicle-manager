@@ -29,6 +29,7 @@ from .const import (
     ATTR_MILEAGE,
     ATTR_MONTHS,
     CARD_FILENAME,
+    HACS_CARD_REPO,
     CONF_MEDIA_ID,
     CONF_MILEAGE,
     DOC_REVIZIE,
@@ -149,6 +150,18 @@ async def _async_register_frontend(hass: HomeAssistant) -> None:
         )
     except ImportError:  # HA < 2024.7
         hass.http.register_static_path(URL_BASE, www_dir, False)
+
+    # Daca cardul e instalat separat din HACS (categoria Dashboard), HACS il
+    # incarca drept resursa Lovelace; copia inclusa aici nu se mai incarca,
+    # altfel ar castiga mereu ea (se incarca prima) si ar ignora versiunea HACS.
+    hacs_card = Path(hass.config.path("www", "community", HACS_CARD_REPO))
+    if await hass.async_add_executor_job(hacs_card.is_dir):
+        _LOGGER.info(
+            "Cardul este instalat din HACS (%s); copia inclusa in integrare nu se incarca",
+            hacs_card,
+        )
+        domain_data[DATA_FRONTEND] = True
+        return
 
     try:
         from homeassistant.components.frontend import add_extra_js_url
