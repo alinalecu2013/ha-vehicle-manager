@@ -6,7 +6,7 @@
  * model 3D rotativ in centru, acte in dreapta.
  */
 
-const CARD_VERSION = "1.2.0";
+const CARD_VERSION = "1.2.1";
 const DEFAULT_THREE = "https://esm.sh/three@0.160.0";
 
 console.info(
