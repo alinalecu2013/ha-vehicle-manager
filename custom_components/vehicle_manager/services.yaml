@@ -1,6 +1,6 @@
 set_mileage:
   target:
-    device:
+    entity:
       integration: vehicle_manager
   fields:
     mileage:
@@ -16,7 +16,7 @@ set_mileage:
 
 set_document:
   target:
-    device:
+    entity:
       integration: vehicle_manager
   fields:
     document:
@@ -44,7 +44,7 @@ set_document:
 
 renew_document:
   target:
-    device:
+    entity:
       integration: vehicle_manager
   fields:
     document:
@@ -78,7 +78,7 @@ renew_document:
 
 mark_service_done:
   target:
-    device:
+    entity:
       integration: vehicle_manager
   fields:
     document:
