@@ -21,13 +21,18 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
 from .const import (
+    ATTR_AMOUNT,
+    ATTR_CATEGORY,
+    ATTR_COST,
     ATTR_DATE,
     ATTR_DOCUMENT,
+    ATTR_EXPENSE_ID,
     ATTR_INTERVAL_KM,
     ATTR_INTERVAL_MONTHS,
     ATTR_KM,
     ATTR_MILEAGE,
     ATTR_MONTHS,
+    ATTR_NOTE,
     CARD_FILENAME,
     HACS_CARD_REPO,
     CONF_MEDIA_ID,
@@ -37,6 +42,8 @@ from .const import (
     DOMAIN,
     MEDIA_DIRNAME,
     PLATFORMS,
+    SERVICE_ADD_EXPENSE,
+    SERVICE_DELETE_EXPENSE,
     SERVICE_MARK_SERVICE_DONE,
     SERVICE_RENEW_DOCUMENT,
     SERVICE_SET_DOCUMENT,
@@ -47,6 +54,7 @@ from .const import (
     km_key,
 )
 from .coordinator import VehicleCoordinator, as_date, as_int
+from .costs import EXPENSE_FIELDS, async_setup_costs, get_cost_manager
 from .theme import async_setup_theme
 
 _LOGGER = logging.getLogger(__name__)
@@ -79,6 +87,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await _async_ensure_media_dir(hass)
     await async_setup_theme(hass)
+    await async_setup_costs(hass)
     await _async_register_frontend(hass)
 
     coordinator = VehicleCoordinator(hass, entry)
@@ -101,7 +110,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Sterge fisierele media incarcate pentru vehiculul eliminat."""
+    """Sterge fisierele media si istoricul cheltuielilor vehiculului eliminat."""
+    costs = await async_setup_costs(hass)
+    await costs.async_remove_entry(entry.entry_id)
+
     media_dir = Path(hass.config.path("www", MEDIA_DIRNAME))
     options = entry.options or entry.data
     media_id = options.get(CONF_MEDIA_ID) or entry.entry_id[:12]
@@ -212,6 +224,7 @@ RENEW_DOCUMENT_SCHEMA = vol.Schema(
             vol.Coerce(int), vol.Range(min=1, max=120)
         ),
         vol.Optional(ATTR_INTERVAL_KM): vol.All(vol.Coerce(int), vol.Range(min=0)),
+        vol.Optional(ATTR_COST): vol.All(vol.Coerce(float), vol.Range(min=0)),
     }
 )
 
@@ -226,8 +239,13 @@ MARK_SERVICE_DONE_SCHEMA = vol.Schema(
         vol.Optional(ATTR_INTERVAL_KM, default=15000): vol.All(
             vol.Coerce(int), vol.Range(min=0)
         ),
+        vol.Optional(ATTR_COST): vol.All(vol.Coerce(float), vol.Range(min=0)),
     }
 )
+
+ADD_EXPENSE_SCHEMA = vol.Schema({**TARGET_SCHEMA, **EXPENSE_FIELDS})
+
+DELETE_EXPENSE_SCHEMA = vol.Schema({vol.Required(ATTR_EXPENSE_ID): cv.string})
 
 
 def _resolve_coordinators(
@@ -318,6 +336,7 @@ def _async_register_services(hass: HomeAssistant) -> None:
                 mileage = as_int(opts.get(CONF_MILEAGE)) or 0
                 changes[km_key(doc)] = mileage + interval_km
             await coordinator.async_set_options(changes)
+            await _record_cost(coordinator, doc, call.data.get(ATTR_COST))
 
     async def _mark_service_done(call: ServiceCall) -> None:
         doc = call.data[ATTR_DOCUMENT]
@@ -334,6 +353,37 @@ def _async_register_services(hass: HomeAssistant) -> None:
             if DOCUMENTS[doc]["uses_km"]:
                 changes[km_key(doc)] = mileage + call.data[ATTR_INTERVAL_KM]
             await coordinator.async_set_options(changes)
+            await _record_cost(coordinator, doc, call.data.get(ATTR_COST), mileage)
+
+    async def _record_cost(
+        coordinator: VehicleCoordinator,
+        doc: str,
+        cost: float | None,
+        mileage: int | None = None,
+    ) -> None:
+        """Inregistreaza costul reinnoirii, daca a fost dat (categoria = actul)."""
+        if cost is None:
+            return
+        if mileage is None:
+            mileage = as_int(coordinator.options.get(CONF_MILEAGE))
+        await get_cost_manager(hass).async_add(
+            coordinator.entry.entry_id, category=doc, amount=cost, mileage=mileage
+        )
+
+    async def _add_expense(call: ServiceCall) -> None:
+        for coordinator in _resolve_coordinators(hass, call):
+            await get_cost_manager(hass).async_add(
+                coordinator.entry.entry_id,
+                category=call.data[ATTR_CATEGORY],
+                amount=call.data[ATTR_AMOUNT],
+                date_=call.data.get(ATTR_DATE),
+                mileage=call.data.get(ATTR_MILEAGE),
+                note=call.data.get(ATTR_NOTE, ""),
+            )
+
+    async def _delete_expense(call: ServiceCall) -> None:
+        if not await get_cost_manager(hass).async_delete(call.data[ATTR_EXPENSE_ID]):
+            raise ServiceValidationError("Cheltuiala cu acest id nu exista.")
 
     hass.services.async_register(
         DOMAIN, SERVICE_SET_MILEAGE, _set_mileage, schema=SET_MILEAGE_SCHEMA
@@ -349,6 +399,12 @@ def _async_register_services(hass: HomeAssistant) -> None:
         SERVICE_MARK_SERVICE_DONE,
         _mark_service_done,
         schema=MARK_SERVICE_DONE_SCHEMA,
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_ADD_EXPENSE, _add_expense, schema=ADD_EXPENSE_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_DELETE_EXPENSE, _delete_expense, schema=DELETE_EXPENSE_SCHEMA
     )
 
     domain_data[DATA_SERVICES] = True

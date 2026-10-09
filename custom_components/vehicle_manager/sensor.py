@@ -2,14 +2,21 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
-from homeassistant.components.sensor import SensorEntity, SensorStateClass
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorStateClass,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_COLOR,
@@ -30,6 +37,7 @@ from .const import (
     km_key,
 )
 from .coordinator import VehicleCoordinator
+from .costs import get_cost_manager, signal_expenses
 from .entity import VehicleEntity
 
 STATUS_ICONS = {
@@ -64,6 +72,8 @@ async def async_setup_entry(
     entities.extend(
         VehicleSpecSensor(coordinator, key, option, icon) for key, option, icon in SPECS
     )
+    entities.append(VehicleExpenseSensor(coordinator, yearly=True))
+    entities.append(VehicleExpenseSensor(coordinator, yearly=False))
     async_add_entities(entities)
 
 
@@ -209,3 +219,63 @@ class VehicleSpecSensor(VehicleEntity, SensorEntity):
     def available(self) -> bool:
         """Indisponibil daca utilizatorul nu a completat caracteristica."""
         return super().available and self.native_value not in (None, "")
+
+
+class VehicleExpenseSensor(VehicleEntity, SensorEntity):
+    """Totalul cheltuielilor: pe anul curent sau pe tot istoricul."""
+
+    _attr_device_class = SensorDeviceClass.MONETARY
+    # TOTAL (nu TOTAL_INCREASING): stergerea unei cheltuieli poate scadea totalul.
+    _attr_state_class = SensorStateClass.TOTAL
+    _attr_suggested_display_precision = 2
+
+    def __init__(self, coordinator: VehicleCoordinator, *, yearly: bool) -> None:
+        """Initializeaza senzorul de cheltuieli."""
+        key = "expenses_year" if yearly else "expenses_total"
+        super().__init__(coordinator, key)
+        self._yearly = yearly
+        self._attr_translation_key = key
+        self._attr_icon = "mdi:cash-multiple" if yearly else "mdi:cash-register"
+        # moneda setata in Home Assistant (Setari > Sistem > General)
+        self._attr_native_unit_of_measurement = coordinator.hass.config.currency
+
+    async def async_added_to_hass(self) -> None:
+        """Se actualizeaza imediat la fiecare cheltuiala adaugata sau stearsa."""
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass,
+                signal_expenses(self.coordinator.entry.entry_id),
+                self.async_write_ha_state,
+            )
+        )
+
+    @property
+    def _summary(self) -> dict[str, Any]:
+        return get_cost_manager(self.hass).summary(self.coordinator.entry.entry_id)
+
+    @property
+    def native_value(self) -> float:
+        """Suma cheltuielilor (anul curent sau total)."""
+        summary = self._summary
+        return summary["year_total"] if self._yearly else summary["total"]
+
+    @property
+    def last_reset(self) -> datetime | None:
+        """Totalul anual porneste de la zero la 1 ianuarie."""
+        if not self._yearly:
+            return None
+        now = dt_util.now()
+        return now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Defalcarea pe categorii pentru anul curent."""
+        if not self._yearly:
+            return None
+        summary = self._summary
+        return {
+            "an": summary["year"],
+            "numar_cheltuieli": summary["year_count"],
+            "pe_categorii": summary["year_by_category"],
+        }

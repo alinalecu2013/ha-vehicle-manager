@@ -6,7 +6,7 @@
  * model 3D rotativ in centru, acte in dreapta.
  */
 
-const CARD_VERSION = "1.5.0";
+const CARD_VERSION = "1.6.0";
 const DEFAULT_THREE = "https://esm.sh/three@0.160.0";
 
 console.info(
@@ -615,6 +615,34 @@ class CarViewer {
  * Tema e salvata pe server (vehicle_manager/theme/*), deci e aceeasi pe toate
  * dispozitivele. Cheile si limitele trebuie sa ramana sincronizate cu theme.py.
  */
+const EXPENSES_WS_SUBSCRIBE = "vehicle_manager/expenses/subscribe";
+const EXPENSES_WS_ADD = "vehicle_manager/expenses/add";
+const EXPENSES_WS_DELETE = "vehicle_manager/expenses/delete";
+
+/* Aceleasi chei ca EXPENSE_CATEGORIES din const.py. */
+const EXPENSE_CATEGORIES = {
+  rca: ["RCA", "mdi:shield-car"],
+  itp: ["ITP", "mdi:car-wrench"],
+  rovinieta: ["Rovinieta", "mdi:road-variant"],
+  revizie: ["Revizie", "mdi:oil"],
+  distributie: ["Distributie", "mdi:cog-sync"],
+  reparatii: ["Reparatii", "mdi:wrench"],
+  anvelope: ["Anvelope", "mdi:tire"],
+  combustibil: ["Combustibil", "mdi:gas-station"],
+  spalare: ["Spalare", "mdi:car-wash"],
+  parcare: ["Parcare", "mdi:parking"],
+  amenzi: ["Amenzi", "mdi:file-document-alert"],
+  taxe: ["Taxe si impozit", "mdi:bank"],
+  accesorii: ["Accesorii", "mdi:car-seat"],
+  altele: ["Altele", "mdi:dots-horizontal"],
+};
+
+function todayIso() {
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
 const THEME_WS_SUBSCRIBE = "vehicle_manager/theme/subscribe";
 const THEME_WS_SAVE = "vehicle_manager/theme/save";
 const THEME_BG_UPLOAD = "/api/vehicle_manager/theme/background";
@@ -1298,8 +1326,8 @@ ha-card::before {
 .empty { padding: 26px 16px; text-align: center; color: var(--vm-dim); font-size: calc(13px * var(--vm-fs)); }
 .empty code { color: var(--vm-accent); }
 
-/* ---- meniul Themes ---- */
-.themes {
+/* ---- meniul Themes si panoul Costuri ---- */
+.themes, .costs {
   margin-top: calc(12px * var(--vm-sp));
   padding: 14px;
   border-radius: calc(14px * var(--vm-r));
@@ -1308,7 +1336,7 @@ ha-card::before {
   box-shadow: 0 0 calc(24px * var(--vm-glow)) color-mix(in srgb, var(--vm-accent) 18%, transparent);
   font-size: 13px;
 }
-.themes[hidden] { display: none; }
+.themes[hidden], .costs[hidden] { display: none; }
 
 .th-head {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
@@ -1415,6 +1443,80 @@ ha-card::before {
 .btn.danger { margin-right: auto; color: var(--vm-bad); }
 .btn:disabled { opacity: .5; cursor: progress; }
 
+/* ---- panoul Costuri ---- */
+.c-year {
+  font: inherit; font-size: 12px; padding: 5px 8px;
+  color: var(--vm-text); background: var(--vm-bg);
+  border: 1px solid var(--vm-line); border-radius: 7px;
+}
+.c-tiles {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px; margin-bottom: 12px;
+}
+.c-tile {
+  padding: 10px 12px; border-radius: 10px;
+  background: var(--vm-soft); border: 1px solid var(--vm-line);
+}
+.c-tile .k {
+  font: 10px/1.2 var(--vm-mono); letter-spacing: .14em; text-transform: uppercase;
+  color: var(--vm-dim);
+}
+.c-tile .v { font-size: calc(20px * var(--vm-fs)); font-weight: 700; margin-top: 4px; }
+.c-bars { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.c-bar {
+  display: grid; grid-template-columns: 20px minmax(80px, 140px) 1fr auto;
+  gap: 8px; align-items: center; font-size: 12px;
+}
+.c-bar ha-icon { --mdc-icon-size: 16px; color: var(--vm-dim); }
+.c-bar .track {
+  display: block; height: 8px; border-radius: 4px; overflow: hidden;
+  background: color-mix(in srgb, var(--vm-line) 50%, transparent);
+}
+.c-bar .fill {
+  display: block; height: 100%; border-radius: 4px;
+  background: linear-gradient(90deg, var(--vm-accent), var(--vm-accent-2));
+}
+.c-bar .amt { font-weight: 600; white-space: nowrap; }
+.c-form {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px; align-items: end; padding: 10px; margin-bottom: 12px;
+  border-radius: 10px; background: var(--vm-soft); border: 1px solid var(--vm-line);
+}
+.c-form label { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.c-form label > span {
+  font: 10px/1.2 var(--vm-mono); letter-spacing: .12em; text-transform: uppercase;
+  color: var(--vm-dim);
+}
+.c-form input, .c-form select {
+  font: inherit; font-size: 13px;
+  min-width: 0; padding: 7px 8px;
+  color: var(--vm-text); background: var(--vm-bg);
+  border: 1px solid var(--vm-line); border-radius: 7px;
+}
+.c-form .c-note { grid-column: span 2; }
+.c-list { display: flex; flex-direction: column; gap: 6px; max-height: 360px; overflow: auto; }
+.c-row {
+  display: grid; grid-template-columns: 22px minmax(0, 1fr) auto auto;
+  gap: 10px; align-items: center; padding: 8px 10px; font-size: 13px;
+  border-radius: 9px; border: 1px solid var(--vm-line);
+  background: color-mix(in srgb, var(--vm-bg) 55%, transparent);
+}
+.c-row ha-icon { --mdc-icon-size: 18px; color: var(--vm-dim); }
+.c-row .main { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.c-row .t1 { font-weight: 600; }
+.c-row .t2 {
+  font-size: 11px; color: var(--vm-dim);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.c-row .amt { font-weight: 700; white-space: nowrap; }
+.btn.c-del { padding: 6px 8px; font-size: 10px; }
+.btn.c-del[data-confirm="true"] { color: var(--vm-bad); border-color: var(--vm-bad); }
+.c-empty { color: var(--vm-dim); font-size: 12px; padding: 8px 2px; }
+@media (max-width: 480px) {
+  .c-form .c-note { grid-column: 1 / -1; }
+  .c-bar { grid-template-columns: 18px minmax(70px, 100px) 1fr auto; }
+}
+
 /* ---- mod compact ---- */
 .urgent { display: none; }
 .open-btn { display: none; }
@@ -1424,6 +1526,8 @@ ha-card::before {
 .vm.compact .foot,
 .vm.compact .themes,
 .vm.compact .themes-btn,
+.vm.compact .costs,
+.vm.compact .costs-btn,
 .vm.compact .settings,
 .vm.compact .hud,
 .vm.compact .bracket,
@@ -1537,6 +1641,7 @@ class VehicleManagerCard extends HTMLElement {
       rotate_speed: 0.35,
       show_photo_toggle: true,
       show_theme_button: true,
+      show_costs_button: true,
       compact: false,
       compact_items: 3,
       three_src: DEFAULT_THREE,
@@ -1545,6 +1650,7 @@ class VehicleManagerCard extends HTMLElement {
     this._signature = null;
     if (this._built) {
       this._el.themeBtn.hidden = this._config.show_theme_button === false;
+      this._el.costsBtn.hidden = this._config.show_costs_button === false;
       this._applyLayout();
       this._applyTheme();
       this._viewer?.setOptions({
@@ -1580,6 +1686,8 @@ class VehicleManagerCard extends HTMLElement {
     this._signature = null;
     this._themeDraft = null;
     this._unsubscribeTheme();
+    this._unsubscribeCosts();
+    this._costs = null;
   }
 
   /* --------------------------------------------------------------- */
@@ -1656,6 +1764,10 @@ class VehicleManagerCard extends HTMLElement {
           <span class="top-spacer"></span>
           <div class="picker"><select aria-label="Selecteaza vehiculul"></select></div>
           <span class="plate"></span>
+          <button class="icon-btn costs-btn" title="Costuri" aria-expanded="false">
+            <ha-icon icon="mdi:cash-multiple"></ha-icon>
+            <span>Costuri</span>
+          </button>
           <button class="icon-btn themes-btn" title="Themes" aria-expanded="false">
             <ha-icon icon="mdi:palette-outline"></ha-icon>
             <span>Themes</span>
@@ -1669,6 +1781,7 @@ class VehicleManagerCard extends HTMLElement {
         </header>
 
         <section class="themes" hidden></section>
+        <section class="costs" hidden></section>
 
         <div class="body">
           <section class="panel specs">
@@ -1726,6 +1839,8 @@ class VehicleManagerCard extends HTMLElement {
       urgent: card.querySelector(".urgent"),
       themeBtn: card.querySelector(".themes-btn"),
       themes: card.querySelector(".themes"),
+      costs: card.querySelector(".costs"),
+      costsBtn: card.querySelector(".costs-btn"),
       cardBg: card.querySelector(".card-bg"),
       stageBg: card.querySelector(".stage-bg"),
       specList: card.querySelector(".spec-list"),
@@ -1765,6 +1880,11 @@ class VehicleManagerCard extends HTMLElement {
     this._el.openBtn.addEventListener("click", openPage);
     this._applyLayout();
 
+    this._el.costsBtn.hidden = this._config.show_costs_button === false;
+    this._el.costsBtn.addEventListener("click", () =>
+      this._el.costs.hidden ? this._openCosts() : this._closeCosts()
+    );
+
     this._el.themeBtn.hidden = this._config.show_theme_button === false;
     this._el.themeBtn.addEventListener("click", () =>
       this._el.themes.hidden ? this._openThemes() : this._closeThemes()
@@ -1780,6 +1900,298 @@ class VehicleManagerCard extends HTMLElement {
     this._el.root.classList.toggle("compact", compact);
     this._el.top.dataset.nav = String(compact && Boolean(this._config.navigation_path));
     if (compact && !this._el.themes.hidden) this._closeThemes();
+    if (compact && this._costs) this._closeCosts();
+  }
+
+  /* --------------------------------------------------------------- */
+  /* Costuri                                                          */
+  /* --------------------------------------------------------------- */
+  _openCosts() {
+    if (!this._el.themes.hidden) this._closeThemes();
+    this._costs = {
+      expenses: [],
+      currency: null,
+      year: String(new Date().getFullYear()),
+      loaded: false,
+    };
+    this._el.costsBtn.setAttribute("aria-expanded", "true");
+    this._el.costs.hidden = false;
+    this._buildCosts();
+    this._subscribeCosts();
+  }
+
+  _closeCosts() {
+    this._unsubscribeCosts();
+    this._costs = null;
+    this._el.costsBtn.setAttribute("aria-expanded", "false");
+    this._el.costs.hidden = true;
+    this._el.costs.replaceChildren();
+  }
+
+  _subscribeCosts() {
+    this._unsubscribeCosts();
+    const entryId = this._entryId;
+    const connection = this._hass?.connection;
+    if (!entryId || !connection) return;
+
+    this._costsEntry = entryId;
+    this._costsUnsub = connection
+      .subscribeMessage(
+        (message) => {
+          if (!this._costs || this._costsEntry !== entryId) return;
+          this._costs.expenses = message.expenses || [];
+          this._costs.currency = message.currency || null;
+          this._costs.loaded = true;
+          this._renderCostsData();
+        },
+        { type: EXPENSES_WS_SUBSCRIBE, entry_id: entryId }
+      )
+      .catch((err) => {
+        this._setCostsStatus(
+          err?.code === "unknown_command"
+            ? "Serverul ruleaza o versiune veche a integrarii (fara Costuri). Actualizeaza integrarea si restarteaza Home Assistant."
+            : `Costurile nu pot fi incarcate: ${err?.message || err?.code || err}`
+        );
+        return null;
+      });
+  }
+
+  _unsubscribeCosts() {
+    const pending = this._costsUnsub;
+    this._costsUnsub = null;
+    this._costsEntry = null;
+    pending?.then((unsub) => unsub?.()).catch(() => {});
+  }
+
+  _setCostsStatus(text) {
+    const status = this._el.costs.querySelector(".c-status");
+    if (status) status.textContent = text;
+  }
+
+  _money(value) {
+    const currency = this._costs?.currency || "RON";
+    const language = this._hass?.locale?.language || "ro-RO";
+    try {
+      return new Intl.NumberFormat(language, { style: "currency", currency }).format(value);
+    } catch (err) {
+      return `${formatNumber(Math.round(value * 100) / 100)} ${currency}`;
+    }
+  }
+
+  /* Scheletul panoului; formularul ramane intact cand se schimba datele. */
+  _buildCosts() {
+    const root = this._el.costs;
+    root.innerHTML = `
+      <div class="th-head">
+        <h2>Costuri</h2>
+        <select class="c-year" aria-label="Perioada"></select>
+        <span class="th-status c-status">Se incarca...</span>
+      </div>
+      <div class="c-tiles"></div>
+      <div class="c-bars"></div>
+      <form class="c-form">
+        <label><span>Data</span><input type="date" name="date" required></label>
+        <label><span>Categorie</span><select name="category"></select></label>
+        <label><span>Suma</span><input type="number" name="amount" min="0" step="0.01" inputmode="decimal" required></label>
+        <label><span>Kilometraj</span><input type="number" name="mileage" min="0" step="1" inputmode="numeric"></label>
+        <label class="c-note"><span>Nota</span><input type="text" name="note" maxlength="200" placeholder="optional"></label>
+        <button class="btn primary" type="submit">Adauga</button>
+      </form>
+      <div class="c-list"></div>
+    `;
+
+    const form = root.querySelector(".c-form");
+    const category = form.elements.category;
+    for (const [key, [label]] of Object.entries(EXPENSE_CATEGORIES)) {
+      const option = document.createElement("option");
+      option.value = key;
+      option.textContent = label;
+      category.append(option);
+    }
+    form.elements.date.value = todayIso();
+    if (this._mileage !== null && this._mileage !== undefined) {
+      form.elements.mileage.value = this._mileage;
+    }
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      this._addExpense(form);
+    });
+
+    root.querySelector(".c-year").addEventListener("change", (event) => {
+      this._costs.year = event.target.value;
+      this._renderCostsData();
+    });
+
+    this._renderCostsData();
+  }
+
+  async _addExpense(form) {
+    const amount = Number(form.elements.amount.value);
+    if (!(amount > 0)) {
+      this._setCostsStatus("Introdu o suma mai mare decat zero.");
+      return;
+    }
+    const message = {
+      type: EXPENSES_WS_ADD,
+      entry_id: this._costsEntry,
+      category: form.elements.category.value,
+      amount,
+      date: form.elements.date.value || todayIso(),
+    };
+    if (form.elements.mileage.value !== "") message.mileage = Number(form.elements.mileage.value);
+    const note = form.elements.note.value.trim();
+    if (note) message.note = note;
+
+    const submit = form.querySelector("button[type=submit]");
+    submit.disabled = true;
+    try {
+      await this._hass.callWS(message);
+      form.elements.amount.value = "";
+      form.elements.note.value = "";
+      this._setCostsStatus(`Adaugat: ${EXPENSE_CATEGORIES[message.category][0]}, ${this._money(amount)}.`);
+    } catch (err) {
+      this._setCostsStatus(`Cheltuiala nu a putut fi salvata: ${err?.message || err?.code || err}`);
+    } finally {
+      submit.disabled = false;
+    }
+  }
+
+  async _deleteExpense(button, expense) {
+    /* primul click cere confirmare, al doilea sterge */
+    if (button.dataset.confirm !== "true") {
+      button.dataset.confirm = "true";
+      button.textContent = "Sigur?";
+      setTimeout(() => {
+        if (button.isConnected) {
+          button.dataset.confirm = "false";
+          button.textContent = "Sterge";
+        }
+      }, 3000);
+      return;
+    }
+    button.disabled = true;
+    try {
+      await this._hass.callWS({ type: EXPENSES_WS_DELETE, expense_id: expense.id });
+    } catch (err) {
+      button.disabled = false;
+      this._setCostsStatus(`Cheltuiala nu a putut fi stearsa: ${err?.message || err?.code || err}`);
+    }
+  }
+
+  _renderCostsData() {
+    const costs = this._costs;
+    const root = this._el.costs;
+    if (!costs || root.hidden) return;
+    const all = costs.expenses;
+    const language = this._hass?.locale?.language || "ro-RO";
+
+    /* perioada: anii cu cheltuieli + anul curent, sau tot istoricul */
+    const yearSelect = root.querySelector(".c-year");
+    const years = new Set([String(new Date().getFullYear())]);
+    for (const item of all) years.add(item.date.slice(0, 4));
+    const choices = [...[...years].sort().reverse().map((y) => [y, `Anul ${y}`]), ["all", "Toti anii"]];
+    yearSelect.replaceChildren(
+      ...choices.map(([value, label]) => {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = label;
+        return option;
+      })
+    );
+    if (!choices.some(([value]) => value === costs.year)) costs.year = choices[0][0];
+    yearSelect.value = costs.year;
+
+    const items = costs.year === "all" ? all : all.filter((e) => e.date.startsWith(`${costs.year}-`));
+    const sum = (list) => list.reduce((total, e) => total + e.amount, 0);
+
+    /* rezumat */
+    const tiles = costs.year === "all"
+      ? [
+          ["Total", this._money(sum(all))],
+          ["Medie pe an", this._money(sum(all) / Math.max(1, new Set(all.map((e) => e.date.slice(0, 4))).size))],
+          ["Cheltuieli", String(all.length)],
+        ]
+      : [
+          [`Anul ${costs.year}`, this._money(sum(items))],
+          ["Total general", this._money(sum(all))],
+          ["Cheltuieli in an", String(items.length)],
+        ];
+    root.querySelector(".c-tiles").replaceChildren(
+      ...tiles.map(([key, value]) => {
+        const tile = document.createElement("div");
+        tile.className = "c-tile";
+        tile.innerHTML = `<div class="k"></div><div class="v"></div>`;
+        tile.querySelector(".k").textContent = key;
+        tile.querySelector(".v").textContent = value;
+        return tile;
+      })
+    );
+
+    /* pe categorii */
+    const byCategory = new Map();
+    for (const e of items) byCategory.set(e.category, (byCategory.get(e.category) || 0) + e.amount);
+    const ranked = [...byCategory.entries()].sort((a, b) => b[1] - a[1]);
+    const max = ranked.length ? ranked[0][1] : 0;
+    root.querySelector(".c-bars").replaceChildren(
+      ...ranked.map(([key, amount]) => {
+        const [label, icon] = EXPENSE_CATEGORIES[key] || [key, "mdi:cash"];
+        const row = document.createElement("div");
+        row.className = "c-bar";
+        row.innerHTML = `<ha-icon></ha-icon><span class="lbl"></span>
+          <span class="track"><span class="fill"></span></span><span class="amt"></span>`;
+        row.querySelector("ha-icon").setAttribute("icon", icon);
+        row.querySelector(".lbl").textContent = label;
+        row.querySelector(".fill").style.width = `${max ? Math.max(2, (amount / max) * 100) : 0}%`;
+        row.querySelector(".amt").textContent = this._money(amount);
+        return row;
+      })
+    );
+
+    /* lista */
+    const list = root.querySelector(".c-list");
+    if (!items.length) {
+      const empty = document.createElement("div");
+      empty.className = "c-empty";
+      empty.textContent = costs.loaded
+        ? "Nicio cheltuiala in perioada aleasa. Adaug-o din formularul de mai sus."
+        : "Se incarca...";
+      list.replaceChildren(empty);
+    } else {
+      list.replaceChildren(
+        ...items.map((expense) => {
+          const [label, icon] = EXPENSE_CATEGORIES[expense.category] || [expense.category, "mdi:cash"];
+          const row = document.createElement("div");
+          row.className = "c-row";
+          row.innerHTML = `<ha-icon></ha-icon>
+            <span class="main"><span class="t1"></span><span class="t2"></span></span>
+            <span class="amt"></span>`;
+          row.querySelector("ha-icon").setAttribute("icon", icon);
+          row.querySelector(".t1").textContent = label;
+          row.querySelector(".t2").textContent = [
+            formatDate(expense.date, language),
+            expense.mileage !== null && expense.mileage !== undefined
+              ? `${formatNumber(expense.mileage)} km`
+              : null,
+            expense.note || null,
+          ]
+            .filter(Boolean)
+            .join(" · ");
+          row.querySelector(".amt").textContent = this._money(expense.amount);
+          const remove = this._themeButton("Sterge", "btn c-del", () =>
+            this._deleteExpense(remove, expense)
+          );
+          remove.title = `Sterge (id ${expense.id})`;
+          row.append(remove);
+          return row;
+        })
+      );
+    }
+
+    if (costs.loaded) {
+      this._setCostsStatus(
+        all.length ? "" : "Inca nu ai inregistrat cheltuieli pentru acest vehicul."
+      );
+    }
   }
 
   /* --------------------------------------------------------------- */
@@ -1857,6 +2269,7 @@ class VehicleManagerCard extends HTMLElement {
   }
 
   _openThemes() {
+    if (this._costs) this._closeCosts();
     this._themeDraft = { ...this._baseTheme() };
     this._el.themeBtn.setAttribute("aria-expanded", "true");
     this._el.themes.hidden = false;
@@ -2257,6 +2670,16 @@ class VehicleManagerCard extends HTMLElement {
     /* --- acte urgente (modul compact) --- */
     this._renderUrgent(documents, entities);
 
+    /* --- costuri: la schimbarea vehiculului, panoul deschis trece pe noul vehicul --- */
+    this._entryId = attributes.entry_id || null;
+    this._mileage = vehicle.mileage ?? null;
+    if (this._costs && this._costsEntry !== this._entryId) {
+      this._costs.expenses = [];
+      this._costs.loaded = false;
+      this._buildCosts();
+      this._subscribeCosts();
+    }
+
     /* --- scena --- */
     this._currentPhoto = attributes.photo || null;
     this._viewer?.setVehicle({
@@ -2465,7 +2888,14 @@ const EDITOR_SCHEMA = [
     name: "rotate_speed",
     selector: { number: { min: 0, max: 1.5, step: 0.05, mode: "slider" } },
   },
-  { name: "show_theme_button", selector: { boolean: {} } },
+  {
+    type: "grid",
+    name: "",
+    schema: [
+      { name: "show_theme_button", selector: { boolean: {} } },
+      { name: "show_costs_button", selector: { boolean: {} } },
+    ],
+  },
   {
     type: "grid",
     name: "",
@@ -2485,6 +2915,7 @@ const EDITOR_LABELS = {
   show_photo_toggle: "Buton comutare poza",
   rotate_speed: "Viteza de rotire",
   show_theme_button: "Buton Themes (culorile se aleg din card)",
+  show_costs_button: "Buton Costuri (istoricul cheltuielilor)",
   compact: "Mod compact (pentru pagina principala)",
   compact_items: "Acte afisate in modul compact",
   navigation_path: "Pagina deschisa din modul compact (ex. /lovelace/masini)",

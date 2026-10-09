@@ -75,6 +75,13 @@ renew_document:
           step: 500
           mode: box
           unit_of_measurement: km
+    cost:
+      selector:
+        number:
+          min: 0
+          max: 1000000
+          step: 0.01
+          mode: box
 
 mark_service_done:
   target:
@@ -115,3 +122,67 @@ mark_service_done:
           step: 500
           mode: box
           unit_of_measurement: km
+    cost:
+      selector:
+        number:
+          min: 0
+          max: 1000000
+          step: 0.01
+          mode: box
+
+add_expense:
+  target:
+    entity:
+      integration: vehicle_manager
+  fields:
+    category:
+      required: true
+      selector:
+        select:
+          translation_key: expense_category
+          options:
+            - rca
+            - itp
+            - rovinieta
+            - revizie
+            - distributie
+            - reparatii
+            - anvelope
+            - combustibil
+            - spalare
+            - parcare
+            - amenzi
+            - taxe
+            - accesorii
+            - altele
+    amount:
+      required: true
+      example: 850
+      selector:
+        number:
+          min: 0
+          max: 10000000
+          step: 0.01
+          mode: box
+    date:
+      selector:
+        date:
+    mileage:
+      selector:
+        number:
+          min: 0
+          max: 3000000
+          step: 1
+          mode: box
+          unit_of_measurement: km
+    note:
+      example: Schimb placute frana fata
+      selector:
+        text:
+
+delete_expense:
+  fields:
+    expense_id:
+      required: true
+      selector:
+        text:

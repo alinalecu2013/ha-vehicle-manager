@@ -136,6 +136,24 @@
         "revizie": "Revizie",
         "distributie": "Distributie"
       }
+    },
+    "expense_category": {
+      "options": {
+        "rca": "RCA",
+        "itp": "ITP",
+        "rovinieta": "Rovinieta",
+        "revizie": "Revizie",
+        "distributie": "Distributie",
+        "reparatii": "Reparatii",
+        "anvelope": "Anvelope",
+        "combustibil": "Combustibil",
+        "spalare": "Spalare",
+        "parcare": "Parcare",
+        "amenzi": "Amenzi",
+        "taxe": "Taxe si impozit",
+        "accesorii": "Accesorii",
+        "altele": "Altele"
+      }
     }
   },
   "entity": {
@@ -153,7 +171,9 @@
       "engine_capacity": { "name": "Capacitate motor" },
       "fuel_type": { "name": "Combustibil" },
       "license_plate": { "name": "Numar de inmatriculare" },
-      "vin": { "name": "Serie de sasiu" }
+      "vin": { "name": "Serie de sasiu" },
+      "expenses_year": { "name": "Cheltuieli anul curent" },
+      "expenses_total": { "name": "Cheltuieli totale" }
     },
     "binary_sensor": {
       "attention": { "name": "Acte de rezolvat" },
@@ -213,7 +233,8 @@
         "interval_km": {
           "name": "Interval km",
           "description": "Doar pentru revizie si distributie: se adauga la kilometrajul curent."
-        }
+        },
+        "cost": { "name": "Cost", "description": "Optional: inregistreaza si suma platita in istoricul cheltuielilor." }
       }
     },
     "mark_service_done": {
@@ -235,7 +256,26 @@
         "interval_km": {
           "name": "Interval km",
           "description": "Peste cati km este urmatoarea scadenta."
-        }
+        },
+        "cost": { "name": "Cost", "description": "Optional: inregistreaza si suma platita in istoricul cheltuielilor." }
+      }
+    },
+    "add_expense": {
+      "name": "Adauga cheltuiala",
+      "description": "Inregistreaza o cheltuiala in istoricul costurilor vehiculului.",
+      "fields": {
+        "category": { "name": "Categorie", "description": "Tipul cheltuielii." },
+        "amount": { "name": "Suma", "description": "Suma platita, in moneda setata in Home Assistant." },
+        "date": { "name": "Data", "description": "Cand a fost platita. Implicit azi." },
+        "mileage": { "name": "Kilometraj", "description": "Optional: kilometrajul din acel moment." },
+        "note": { "name": "Nota", "description": "Optional: detalii, ex. service-ul sau piesele schimbate." }
+      }
+    },
+    "delete_expense": {
+      "name": "Sterge cheltuiala",
+      "description": "Sterge o cheltuiala din istoricul costurilor.",
+      "fields": {
+        "expense_id": { "name": "Id cheltuiala", "description": "Id-ul afisat in card sau primit la adaugare." }
       }
     }
   }

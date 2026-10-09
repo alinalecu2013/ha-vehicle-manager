@@ -136,6 +136,24 @@
         "revizie": "Service",
         "distributie": "Timing belt"
       }
+    },
+    "expense_category": {
+      "options": {
+        "rca": "Insurance (RCA)",
+        "itp": "Inspection (ITP)",
+        "rovinieta": "Road tax",
+        "revizie": "Service",
+        "distributie": "Timing belt",
+        "reparatii": "Repairs",
+        "anvelope": "Tyres",
+        "combustibil": "Fuel",
+        "spalare": "Car wash",
+        "parcare": "Parking",
+        "amenzi": "Fines",
+        "taxe": "Taxes",
+        "accesorii": "Accessories",
+        "altele": "Other"
+      }
     }
   },
   "entity": {
@@ -153,7 +171,9 @@
       "engine_capacity": { "name": "Engine capacity" },
       "fuel_type": { "name": "Fuel" },
       "license_plate": { "name": "License plate" },
-      "vin": { "name": "VIN" }
+      "vin": { "name": "VIN" },
+      "expenses_year": { "name": "Expenses this year" },
+      "expenses_total": { "name": "Total expenses" }
     },
     "binary_sensor": {
       "attention": { "name": "Documents need attention" },
@@ -210,7 +230,8 @@
         "interval_km": {
           "name": "Mileage interval",
           "description": "Only for service and timing belt: added to the current mileage."
-        }
+        },
+        "cost": { "name": "Cost", "description": "Optional: also records the amount paid in the expense history." }
       }
     },
     "mark_service_done": {
@@ -229,7 +250,26 @@
         "interval_km": {
           "name": "Mileage interval",
           "description": "How many km until the next due date."
-        }
+        },
+        "cost": { "name": "Cost", "description": "Optional: also records the amount paid in the expense history." }
+      }
+    },
+    "add_expense": {
+      "name": "Add expense",
+      "description": "Records an expense in the vehicle's cost history.",
+      "fields": {
+        "category": { "name": "Category", "description": "The type of expense." },
+        "amount": { "name": "Amount", "description": "The amount paid, in the currency set in Home Assistant." },
+        "date": { "name": "Date", "description": "When it was paid. Defaults to today." },
+        "mileage": { "name": "Mileage", "description": "Optional: the odometer value at that moment." },
+        "note": { "name": "Note", "description": "Optional: details, e.g. the garage or the parts changed." }
+      }
+    },
+    "delete_expense": {
+      "name": "Delete expense",
+      "description": "Deletes an expense from the cost history.",
+      "fields": {
+        "expense_id": { "name": "Expense id", "description": "The id shown in the card or returned when the expense was added." }
       }
     }
   }

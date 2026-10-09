@@ -6,7 +6,7 @@ from datetime import timedelta
 from typing import Final
 
 DOMAIN: Final = "vehicle_manager"
-VERSION: Final = "1.5.0"
+VERSION: Final = "1.6.0"
 
 PLATFORMS: Final = ["sensor", "binary_sensor", "number", "date", "image", "calendar"]
 
@@ -189,3 +189,31 @@ ATTR_MONTHS: Final = "months"
 ATTR_INTERVAL_KM: Final = "interval_km"
 ATTR_INTERVAL_MONTHS: Final = "interval_months"
 ATTR_MILEAGE: Final = "mileage"
+
+# --- Cheltuieli ---
+SERVICE_ADD_EXPENSE: Final = "add_expense"
+SERVICE_DELETE_EXPENSE: Final = "delete_expense"
+
+ATTR_CATEGORY: Final = "category"
+ATTR_AMOUNT: Final = "amount"
+ATTR_NOTE: Final = "note"
+ATTR_EXPENSE_ID: Final = "expense_id"
+ATTR_COST: Final = "cost"
+
+# Cheie -> (eticheta, iconita). Ordinea e cea din card si din selectoare.
+EXPENSE_CATEGORIES: Final[dict[str, tuple[str, str]]] = {
+    "rca": ("RCA", "mdi:shield-car"),
+    "itp": ("ITP", "mdi:car-wrench"),
+    "rovinieta": ("Rovinieta", "mdi:road-variant"),
+    "revizie": ("Revizie", "mdi:oil"),
+    "distributie": ("Distributie", "mdi:cog-sync"),
+    "reparatii": ("Reparatii", "mdi:wrench"),
+    "anvelope": ("Anvelope", "mdi:tire"),
+    "combustibil": ("Combustibil", "mdi:gas-station"),
+    "spalare": ("Spalare", "mdi:car-wash"),
+    "parcare": ("Parcare", "mdi:parking"),
+    "amenzi": ("Amenzi", "mdi:file-document-alert"),
+    "taxe": ("Taxe si impozit", "mdi:bank"),
+    "accesorii": ("Accesorii", "mdi:car-seat"),
+    "altele": ("Altele", "mdi:dots-horizontal"),
+}

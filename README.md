@@ -84,6 +84,7 @@ listeaza in meniul drop-down din partea de sus.
 | `rotate_speed` | `0.35` | Radiani pe secunda. |
 | `show_photo_toggle` | `true` | Butonul `3D` / `Poza` din scena. |
 | `show_theme_button` | `true` | Arata butonul **Themes** din bara de sus. |
+| `show_costs_button` | `true` | Arata butonul **Costuri** din bara de sus. |
 | `compact` | `false` | Mod compact pentru pagina principala (vezi mai jos). |
 | `compact_items` | `3` | Cate acte se afiseaza in modul compact (1 - 5). |
 | `navigation_path` | - | In modul compact, pagina deschisa la atingerea numelui (ex. `/lovelace/masini`). |
@@ -121,6 +122,24 @@ navigation_path: /lovelace/masini   # optional: pagina cu cardul complet
 
 Atingerea unui act deschide data lui, ca in cardul complet. Cu `navigation_path`,
 atingerea numelui masinii (sau a sagetii) deschide pagina indicata.
+
+### Costuri
+
+Butonul **Costuri** din bara de sus deschide istoricul cheltuielilor vehiculului selectat:
+
+![Panoul Costuri](https://raw.githubusercontent.com/alinalecu2013/ha-vehicle-manager/main/images/costs.png)
+
+- totalul pe anul ales, totalul general si numarul de cheltuieli;
+- un grafic pe categorii (RCA, ITP, rovinieta, revizie, distributie, reparatii, anvelope,
+  combustibil, spalare, parcare, amenzi, taxe si impozit, accesorii, altele);
+- formular de adaugare: data (implicit azi), categoria, suma, kilometrajul (implicit cel
+  curent) si o nota;
+- lista cheltuielilor, filtrabila pe ani, cu stergere (al doilea click confirma).
+
+Cheltuielile se salveaza pe server (`.storage/vehicle_manager.expenses`), sunt aceleasi pe
+toate dispozitivele si se actualizeaza live. Moneda este cea setata in
+**Setari &rsaquo; Sistem &rsaquo; General**. La stergerea unui vehicul se sterge si
+istoricul lui de cheltuieli.
 
 ### Themes
 
@@ -183,6 +202,8 @@ Daca three.js nu poate fi incarcat si vehiculul are poza, cardul comuta automat 
 | `binary_sensor` | Acte de rezolvat, Acte expirate | Pentru automatizari si notificari. |
 | `image` | Poza | Poza vehiculului. |
 | `calendar` | Scadente | Un eveniment pe toata ziua pentru fiecare act cu data de scadenta. |
+| `sensor` | Cheltuieli anul curent | Suma cheltuielilor din anul curent (in moneda setata in HA), cu defalcare pe categorii in atribute. |
+| `sensor` | Cheltuieli totale | Suma tuturor cheltuielilor inregistrate. |
 
 Pragurile de avertizare (implicit 30 de zile si 1000 km) se configureaza per vehicul din
 **Configurare &rsaquo; Praguri de avertizare**.
@@ -227,6 +248,21 @@ trateaza doar butoanele propriilor notificari.
   actuala daca e in viitor, altfel de la azi).
 - `vehicle_manager.mark_service_done` — inregistreaza o revizie sau o distributie si
   calculeaza automat urmatoarea scadenta.
+- `vehicle_manager.add_expense` — adauga o cheltuiala (categorie, suma, data, km, nota).
+- `vehicle_manager.delete_expense` — sterge o cheltuiala dupa id.
+
+`renew_document` si `mark_service_done` accepta si campul optional `cost`: suma platita
+se inregistreaza automat in istoric, la categoria actului. Exemplu:
+
+```yaml
+action: vehicle_manager.renew_document
+target:
+  entity_id: sensor.astra_stare_acte
+data:
+  document: rca
+  months: 12
+  cost: 1240
+```
 
 Exemplu de automatizare:
 
