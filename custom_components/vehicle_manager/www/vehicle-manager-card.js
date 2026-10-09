@@ -44,6 +44,10 @@ function t(text, vars) {
 }
 
 const EN = {
+  "Urmeaza": "Next",
+  "Inchide": "Close",
+  "zi": "day",
+  "zile": "days",
   "Limba": "Language",
   "Limba cardurilor": "Card language",
   "Automat (limba din Home Assistant)": "Automatic (Home Assistant language)",
@@ -266,6 +270,13 @@ const KM_HORIZON = { revizie: 15000, distributie: 120000 };
 /* Ordinea in modul compact: intai ce e expirat, apoi ce expira curand. */
 const STATUS_RANK = { expired: 0, warning: 1, ok: 2, unknown: 3 };
 
+/* Starea si prin forma, nu doar prin culoare (daltonism). */
+const STATUS_ICON = {
+  ok: "mdi:check-circle",
+  warning: "mdi:alert-circle",
+  expired: "mdi:close-circle",
+};
+
 const STATUS_LABEL = {
   ok: "Valabil",
   warning: "Expira curand",
@@ -375,6 +386,10 @@ function navigate(path) {
 /* Viewer 3D                                                           */
 /* ------------------------------------------------------------------ */
 
+/* Telefonul cere animatii reduse: fara rotire automata. */
+const REDUCED_MOTION =
+  typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
 class CarViewer {
   constructor(canvas, options) {
     this.canvas = canvas;
@@ -412,7 +427,8 @@ class CarViewer {
       alpha: true,
       powerPreference: "high-performance",
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    const coarse = typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, coarse ? 1.5 : 2));
     if ("outputColorSpace" in this.renderer) {
       this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     }
@@ -441,7 +457,7 @@ class CarViewer {
       this._pendingVehicle = null;
       await this.setVehicle(pending);
     }
-    this._loop(performance.now());
+    this._kick();
   }
 
   /* --------------------------------------------------------------- */
@@ -552,6 +568,7 @@ class CarViewer {
     });
     this._buildStage();
     this._buildEnvironment();
+    this._kick();
   }
 
   _buildShadowBlob() {
@@ -770,6 +787,7 @@ class CarViewer {
         const model = await this._loadModel(vehicle.model3d);
         if (this.disposed || this._currentKey !== key) return;
         this.carGroup.add(model);
+        this._kick();
         return;
       } catch (err) {
         console.warn(
@@ -781,6 +799,7 @@ class CarViewer {
     }
 
     this.carGroup.add(this._buildProceduralCar(vehicle.colorHex));
+    this._kick();
   }
 
   _clearCar() {
@@ -799,6 +818,7 @@ class CarViewer {
   /* --------------------------------------------------------------- */
   _attachPointerHandlers() {
     const onDown = (event) => {
+      this._kick();
       this.dragging = true;
       this.lastPointer = event.clientX;
       this.lastPointerY = event.clientY;
@@ -816,6 +836,7 @@ class CarViewer {
       event.preventDefault();
     };
     const onUp = (event) => {
+      this._kick();
       this.dragging = false;
       this.canvas.releasePointerCapture?.(event.pointerId);
     };
@@ -832,6 +853,28 @@ class CarViewer {
     this._resize();
     this.observer = new ResizeObserver(() => this._resize());
     this.observer.observe(this.canvas.parentElement || this.canvas);
+
+    /* nu randam cand cardul e in afara ecranului sau aplicatia e in fundal */
+    this.visible = true;
+    if (typeof IntersectionObserver === "function") {
+      this.visibility = new IntersectionObserver((entries) => {
+        this.visible = entries.some((entry) => entry.isIntersecting);
+        this._kick();
+      });
+      this.visibility.observe(this.canvas);
+    }
+    this._onPageVisibility = () => this._kick();
+    document.addEventListener("visibilitychange", this._onPageVisibility);
+  }
+
+  /* Porneste bucla de randare (daca e oprita) si o tine activa putin timp. */
+  _kick() {
+    if (this.disposed || !this.ready) return;
+    this._busyUntil = performance.now() + 1500;
+    if (!this._raf && this.visible !== false && !document.hidden) {
+      this.lastFrame = performance.now();
+      this._raf = requestAnimationFrame((timestamp) => this._loop(timestamp));
+    }
   }
 
   _resize() {
@@ -851,14 +894,17 @@ class CarViewer {
     this.radius = 8.2 * fit;
     this.scene.fog.near = 7 + this.radius - 8.2;
     this.scene.fog.far = 17 + this.radius - 8.2;
+    this._kick();
   }
 
   _loop(now) {
-    if (this.disposed) return;
+    this._raf = null;
+    if (this.disposed || this.visible === false || document.hidden) return;
     const delta = Math.min((now - this.lastFrame) / 1000 || 0, 0.1);
     this.lastFrame = now;
+    const rotating = this.options.autoRotate && !REDUCED_MOTION;
 
-    if (this.options.autoRotate && !this.dragging) {
+    if (rotating && !this.dragging) {
       this.yaw += this.options.rotateSpeed * delta;
     }
     if (!this.dragging) {
@@ -881,17 +927,23 @@ class CarViewer {
     }
 
     this.renderer.render(this.scene, this.camera);
-    this._raf = requestAnimationFrame((timestamp) => this._loop(timestamp));
+
+    /* fara rotire si fara interactiune, scena sta pe loc: nu mai desenam */
+    const idle = !rotating && !this.dragging && this.spin === 0 && now > (this._busyUntil || 0);
+    if (!idle) this._raf = requestAnimationFrame((timestamp) => this._loop(timestamp));
   }
 
   setOptions(options) {
     Object.assign(this.options, options);
+    this._kick();
   }
 
   dispose() {
     this.disposed = true;
     if (this._raf) cancelAnimationFrame(this._raf);
     this.observer?.disconnect();
+    this.visibility?.disconnect();
+    if (this._onPageVisibility) document.removeEventListener("visibilitychange", this._onPageVisibility);
     this._clearCar();
     this.envMap?.dispose?.();
     this.renderer?.dispose?.();
@@ -915,6 +967,14 @@ const FILES_GENERAL = ["general", "Alte documente (talon, cartea masinii...)", "
 const EXPENSES_WS_SUBSCRIBE = "vehicle_manager/expenses/subscribe";
 const EXPENSES_WS_ADD = "vehicle_manager/expenses/add";
 const EXPENSES_WS_DELETE = "vehicle_manager/expenses/delete";
+
+/* Culoare proprie pe categorie: pozitii diferite intre cele doua accente ale temei. */
+function categoryColor(key) {
+  const keys = Object.keys(EXPENSE_CATEGORIES);
+  const index = Math.max(0, keys.indexOf(key));
+  const share = Math.round((index / Math.max(1, keys.length - 1)) * 100);
+  return `color-mix(in oklch, var(--vm-accent-2) ${share}%, var(--vm-accent))`;
+}
 
 /* Aceleasi chei ca EXPENSE_CATEGORIES din const.py. */
 const EXPENSE_CATEGORIES = {
@@ -1362,6 +1422,9 @@ ha-card::before {
 .bg-layer[hidden] { display: none; }
 .vm, .empty { position: relative; z-index: 2; }
 
+/* containerul pentru regulile dupa latimea cardului (nu a ecranului) */
+.vm { container-type: inline-size; container-name: vm; }
+
 .vm { position: relative; padding: calc(14px * var(--vm-sp)) calc(16px * var(--vm-sp)) calc(12px * var(--vm-sp)); }
 
 /* ---- bara superioara ---- */
@@ -1394,8 +1457,8 @@ ha-card::before {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .titles .s {
-  font: calc(10px * var(--vm-fs))/1.4 var(--vm-mono);
-  letter-spacing: .16em; text-transform: uppercase; color: var(--vm-dim);
+  font: calc(11px * var(--vm-fs))/1.4 var(--vm-mono);
+  letter-spacing: .12em; text-transform: uppercase; color: var(--vm-dim);
 }
 
 .top-spacer { flex: 1 1 auto; }
@@ -1439,7 +1502,7 @@ ha-card::before {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   min-width: 34px; height: 34px; flex: none; padding: 0 8px;
   border-radius: calc(9px * var(--vm-r)); cursor: pointer;
-  font: calc(10px * var(--vm-fs))/1 var(--vm-mono); letter-spacing: .14em; text-transform: uppercase;
+  font: calc(11px * var(--vm-fs))/1 var(--vm-mono); letter-spacing: .1em; text-transform: uppercase;
   color: var(--vm-dim);
   background: var(--vm-soft);
   border: 1px solid var(--vm-line);
@@ -1469,8 +1532,8 @@ ha-card::before {
 
 .panel h3 {
   margin: 0 0 10px;
-  font: calc(10px * var(--vm-fs))/1 var(--vm-mono);
-  letter-spacing: .2em; text-transform: uppercase;
+  font: calc(11px * var(--vm-fs))/1 var(--vm-mono);
+  letter-spacing: .14em; text-transform: uppercase;
   color: var(--vm-accent);
   display: flex; align-items: center; gap: 8px;
 }
@@ -1482,6 +1545,26 @@ ha-card::before {
 
 /* ---- caracteristici ---- */
 .specs { display: flex; flex-direction: column; gap: 2px; }
+.mini {
+  margin-top: auto; padding-top: calc(10px * var(--vm-sp));
+  display: flex; flex-direction: column; gap: 6px;
+}
+.mini[hidden] { display: none; }
+.mini-tile {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px;
+  padding: 7px 10px; border-radius: calc(9px * var(--vm-r));
+  background: color-mix(in srgb, var(--vm-bg) 55%, transparent); border: 1px solid var(--vm-line);
+}
+.mini-tile .k {
+  font: calc(10.5px * var(--vm-fs))/1.2 var(--vm-mono); letter-spacing: .08em; text-transform: uppercase;
+  color: var(--vm-dim); white-space: nowrap;
+}
+.mini-tile .v {
+  font-size: calc(13px * var(--vm-fs)); font-weight: 650; text-align: right;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mini-tile[data-status="warning"] .v { color: var(--vm-warn); }
+.mini-tile[data-status="expired"] .v { color: var(--vm-bad); }
 
 .spec {
   display: grid;
@@ -1499,7 +1582,7 @@ ha-card::before {
 
 .spec ha-icon { --mdc-icon-size: calc(17px * var(--vm-fs)); color: var(--vm-dim); }
 .spec .k {
-  font: calc(10px * var(--vm-fs))/1.3 var(--vm-mono);
+  font: calc(11px * var(--vm-fs))/1.3 var(--vm-mono);
   letter-spacing: .1em; text-transform: uppercase; color: var(--vm-dim);
 }
 .spec .v {
@@ -1514,7 +1597,7 @@ ha-card::before {
 .spec .nav ha-icon { --mdc-icon-size: 16px; color: var(--vm-accent); }
 .spec .when { font-size: calc(12.5px * var(--vm-fs)); }
 .spec .auto {
-  font: 600 calc(8.5px * var(--vm-fs))/1 var(--vm-mono); letter-spacing: .12em; text-transform: uppercase;
+  font: 600 calc(9.5px * var(--vm-fs))/1 var(--vm-mono); letter-spacing: .12em; text-transform: uppercase;
   padding: 3px 5px; border-radius: 5px;
   color: var(--vm-accent); border: 1px solid color-mix(in srgb, var(--vm-accent) 55%, transparent);
 }
@@ -1565,8 +1648,8 @@ ha-card::before {
 
 .hud {
   position: absolute; left: 14px; bottom: 12px;
-  font: calc(9px * var(--vm-fs))/1.5 var(--vm-mono);
-  letter-spacing: .18em; text-transform: uppercase;
+  font: calc(10.5px * var(--vm-fs))/1.5 var(--vm-mono);
+  letter-spacing: .12em; text-transform: uppercase;
   color: var(--vm-dim); pointer-events: none;
 }
 
@@ -1575,8 +1658,8 @@ ha-card::before {
   display: flex; gap: 6px;
 }
 .chip {
-  font: calc(9px * var(--vm-fs))/1 var(--vm-mono);
-  letter-spacing: .16em; text-transform: uppercase;
+  font: calc(10.5px * var(--vm-fs))/1 var(--vm-mono);
+  letter-spacing: .12em; text-transform: uppercase;
   padding: 7px 9px; border-radius: calc(8px * var(--vm-r)); cursor: pointer;
   color: var(--vm-dim);
   background: var(--vm-soft);
@@ -1595,7 +1678,7 @@ ha-card::before {
 
 .doc {
   display: grid;
-  grid-template-columns: 44px 1fr auto;
+  grid-template-columns: 48px 1fr auto;
   align-items: center;
   gap: 10px;
   width: 100%;
@@ -1614,7 +1697,7 @@ ha-card::before {
 .doc[data-status="warning"] { border-left-color: var(--vm-warn); }
 .doc[data-status="expired"] { border-left-color: var(--vm-bad); }
 
-.ring { position: relative; width: 44px; height: 44px; }
+.ring { position: relative; width: 48px; height: 48px; }
 .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
 .ring circle { fill: none; stroke-width: 3.5; stroke-linecap: round; }
 .ring .trk { stroke: var(--vm-line); }
@@ -1624,14 +1707,21 @@ ha-card::before {
 .doc[data-status="expired"] .ring .val { stroke: var(--vm-bad); }
 .ring .num {
   position: absolute; inset: 0;
-  display: grid; place-items: center;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
   font: 600 calc(12px * var(--vm-fs))/1 var(--vm-mono);
+}
+.ring .num small {
+  font: 500 8px/1 var(--vm-mono); letter-spacing: .04em; color: var(--vm-dim);
 }
 
 .doc .meta { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.doc .name .st { --mdc-icon-size: 12px; margin-right: 4px; vertical-align: -1px; }
+.doc[data-status="ok"] .name .st { color: var(--vm-ok); }
+.doc[data-status="warning"] .name .st { color: var(--vm-warn); }
+.doc[data-status="expired"] .name .st { color: var(--vm-bad); }
 .doc .name {
-  font: calc(10px * var(--vm-fs))/1.2 var(--vm-mono);
-  letter-spacing: .14em; text-transform: uppercase; color: var(--vm-dim);
+  font: calc(11px * var(--vm-fs))/1.2 var(--vm-mono);
+  letter-spacing: .1em; text-transform: uppercase; color: var(--vm-dim);
 }
 .doc .main { font-size: calc(13.5px * var(--vm-fs)); font-weight: 650; }
 .doc .sub { font-size: calc(11px * var(--vm-fs)); color: var(--vm-dim); }
@@ -1642,8 +1732,8 @@ ha-card::before {
   display: flex; justify-content: space-between; gap: 10px;
   padding-top: calc(10px * var(--vm-sp)); margin-top: calc(12px * var(--vm-sp));
   border-top: 1px solid var(--vm-line);
-  font: calc(9px * var(--vm-fs))/1.4 var(--vm-mono);
-  letter-spacing: .14em; text-transform: uppercase; color: var(--vm-dim);
+  font: calc(10.5px * var(--vm-fs))/1.4 var(--vm-mono);
+  letter-spacing: .1em; text-transform: uppercase; color: var(--vm-dim);
 }
 
 .empty { padding: 26px 16px; text-align: center; color: var(--vm-dim); font-size: calc(13px * var(--vm-fs)); }
@@ -1708,10 +1798,16 @@ ha-card::before {
 }
 .th-head h2 {
   margin: 0; flex: 1 1 auto;
-  font: 600 12px/1 var(--vm-mono); letter-spacing: .2em; text-transform: uppercase;
+  font: 600 12px/1 var(--vm-mono); letter-spacing: .14em; text-transform: uppercase;
   color: var(--vm-accent);
 }
 .th-status { font-size: 11px; color: var(--vm-dim); }
+.th-close {
+  order: 99; width: 30px; height: 30px; flex: none; cursor: pointer;
+  border-radius: 8px; border: 1px solid var(--vm-line); background: var(--vm-soft);
+  color: var(--vm-dim); font: 600 17px/1 var(--vm-mono);
+}
+.th-close:hover { color: var(--vm-accent); border-color: var(--vm-accent); }
 
 .th-presets {
   display: grid;
@@ -1746,7 +1842,7 @@ ha-card::before {
 }
 .th-group h4 {
   margin: 0 0 8px;
-  font: 10px/1 var(--vm-mono); letter-spacing: .18em; text-transform: uppercase;
+  font: 11px/1 var(--vm-mono); letter-spacing: .12em; text-transform: uppercase;
   color: var(--vm-dim);
 }
 
@@ -1799,7 +1895,7 @@ ha-card::before {
   margin-top: 14px;
 }
 .btn {
-  font: 600 11px/1 var(--vm-mono); letter-spacing: .14em; text-transform: uppercase;
+  font: 600 11px/1 var(--vm-mono); letter-spacing: .1em; text-transform: uppercase;
   padding: 10px 14px; border-radius: 9px; cursor: pointer;
   color: var(--vm-text); background: var(--vm-soft);
   border: 1px solid var(--vm-line);
@@ -1825,10 +1921,26 @@ ha-card::before {
   background: var(--vm-soft); border: 1px solid var(--vm-line);
 }
 .c-tile .k {
-  font: 10px/1.2 var(--vm-mono); letter-spacing: .14em; text-transform: uppercase;
+  font: 11px/1.2 var(--vm-mono); letter-spacing: .1em; text-transform: uppercase;
   color: var(--vm-dim);
 }
 .c-tile .v { font-size: calc(20px * var(--vm-fs)); font-weight: 700; margin-top: 4px; }
+.c-chart {
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px;
+  height: 120px; margin-bottom: 14px; padding: 10px 10px 4px;
+  border-radius: 10px; background: var(--vm-soft); border: 1px solid var(--vm-line);
+}
+.c-chart[hidden] { display: none; }
+.c-col { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+.c-col .bar { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
+.c-col .bar span {
+  display: block; width: min(22px, 70%); border-radius: 5px 5px 2px 2px;
+  background: linear-gradient(180deg, var(--vm-accent), color-mix(in srgb, var(--vm-accent-2) 70%, var(--vm-accent)));
+}
+.c-col .lbl {
+  font: calc(10px * var(--vm-fs))/1 var(--vm-mono); color: var(--vm-dim);
+  text-transform: uppercase; white-space: nowrap; overflow: hidden; max-width: 100%;
+}
 .c-bars { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
 .c-bar {
   display: grid; grid-template-columns: 20px minmax(80px, 140px) 1fr auto;
@@ -1851,7 +1963,7 @@ ha-card::before {
 }
 .c-form label { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .c-form label > span {
-  font: 10px/1.2 var(--vm-mono); letter-spacing: .12em; text-transform: uppercase;
+  font: 11px/1.2 var(--vm-mono); letter-spacing: .12em; text-transform: uppercase;
   color: var(--vm-dim);
 }
 .c-form input, .c-form select {
@@ -1927,7 +2039,7 @@ ha-card::before {
 }
 
 .u-item {
-  display: grid; grid-template-columns: 10px minmax(0, 1fr); align-items: center; gap: 8px;
+  display: grid; grid-template-columns: 16px minmax(0, 1fr); align-items: center; gap: 8px;
   width: 100%; padding: calc(7px * var(--vm-sp)) 8px;
   border-radius: calc(9px * var(--vm-r)); cursor: pointer;
   text-align: left; color: inherit; font: inherit;
@@ -1935,13 +2047,13 @@ ha-card::before {
   border: 1px solid var(--vm-line);
 }
 .u-item:hover { background: color-mix(in srgb, var(--vm-accent) 8%, transparent); }
-.u-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--vm-dim); }
-.u-item[data-status="ok"] .u-dot { background: var(--vm-ok); }
-.u-item[data-status="warning"] .u-dot { background: var(--vm-warn); box-shadow: 0 0 calc(8px * var(--vm-glow)) var(--vm-warn); }
-.u-item[data-status="expired"] .u-dot { background: var(--vm-bad); box-shadow: 0 0 calc(8px * var(--vm-glow)) var(--vm-bad); }
+.u-dot { --mdc-icon-size: 16px; color: var(--vm-dim); }
+.u-item[data-status="ok"] .u-dot { color: var(--vm-ok); }
+.u-item[data-status="warning"] .u-dot { color: var(--vm-warn); filter: drop-shadow(0 0 calc(4px * var(--vm-glow)) var(--vm-warn)); }
+.u-item[data-status="expired"] .u-dot { color: var(--vm-bad); filter: drop-shadow(0 0 calc(4px * var(--vm-glow)) var(--vm-bad)); }
 .u-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .u-name {
-  font: calc(9.5px * var(--vm-fs))/1.2 var(--vm-mono);
+  font: calc(10.5px * var(--vm-fs))/1.2 var(--vm-mono);
   letter-spacing: .12em; text-transform: uppercase; color: var(--vm-dim);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
@@ -1956,6 +2068,22 @@ ha-card::before {
   font-size: calc(12px * var(--vm-fs)); color: var(--vm-ok);
 }
 .u-all-ok ha-icon { --mdc-icon-size: 18px; }
+
+/* ---- bara de sus pe card ingust: doar iconite, pe un singur rand ---- */
+@container vm (max-width: 620px) {
+  .top { gap: 8px; }
+  .top .brand { flex: 1 1 0; min-width: 0; }
+  .top-spacer { display: none; }
+  .titles .s { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .top .icon-btn span { display: none; }
+  .top .icon-btn { padding: 0; width: 34px; }
+  .plate { font-size: calc(11px * var(--vm-fs)); padding: 6px 8px; }
+  .picker { order: 9; flex: 1 1 100%; min-width: 0; }
+}
+/* foarte ingust: numarul de inmatriculare ramane in Caracteristici, numele are loc */
+@container vm (max-width: 440px) {
+  .vm:not(.compact) .plate { display: none; }
+}
 
 /* ---- responsive ---- */
 @media (max-width: 880px) {
@@ -2188,6 +2316,7 @@ class VehicleManagerCard extends HTMLElement {
           <section class="panel specs">
             <h3>${t("Caracteristici")}</h3>
             <div class="spec-list"></div>
+            <div class="mini"></div>
           </section>
 
           <section class="stage">
@@ -2247,6 +2376,7 @@ class VehicleManagerCard extends HTMLElement {
       cardBg: card.querySelector(".card-bg"),
       stageBg: card.querySelector(".stage-bg"),
       specList: card.querySelector(".spec-list"),
+      mini: card.querySelector(".mini"),
       docList: card.querySelector(".doc-list"),
       stage: card.querySelector(".stage"),
       canvas: card.querySelector("canvas"),
@@ -2364,6 +2494,7 @@ class VehicleManagerCard extends HTMLElement {
     this._el.filesBtn.setAttribute("aria-expanded", "true");
     this._el.files.hidden = false;
     this._renderFiles();
+    this._revealPanel(this._el.files);
   }
 
   _closeFiles() {
@@ -2386,6 +2517,7 @@ class VehicleManagerCard extends HTMLElement {
     const head = document.createElement("div");
     head.className = "th-head";
     head.innerHTML = `<h2>${t("Dosar")}</h2><span class="th-status f-status"></span>`;
+    head.append(this._closeButton(() => this._closeFiles()));
     head.querySelector(".f-status").textContent =
       previous ||
       (this._files === null
@@ -2520,6 +2652,7 @@ class VehicleManagerCard extends HTMLElement {
     this._el.costs.hidden = false;
     this._buildCosts();
     this._subscribeCosts();
+    this._revealPanel(this._el.costs);
   }
 
   _closeCosts() {
@@ -2590,8 +2723,10 @@ class VehicleManagerCard extends HTMLElement {
         <select class="c-year" aria-label="${t("Perioada")}"></select>
         <button class="btn c-export" type="button" title="${t("Descarca perioada aleasa ca fisier CSV (Excel)")}">${t("Export CSV")}</button>
         <span class="th-status c-status">${t("Se incarca...")}</span>
+        <button class="th-close" type="button" title="${t("Inchide")}" aria-label="${t("Inchide")}">×</button>
       </div>
       <div class="c-tiles"></div>
+      <div class="c-chart"></div>
       <div class="c-bars"></div>
       <form class="c-form">
         <label><span>${t("Data")}</span><input type="date" name="date" required></label>
@@ -2632,6 +2767,7 @@ class VehicleManagerCard extends HTMLElement {
     });
 
     root.querySelector(".c-export").addEventListener("click", () => this._exportCosts());
+    root.querySelector(".th-close").addEventListener("click", () => this._closeCosts());
 
     root.querySelector(".c-year").addEventListener("change", (event) => {
       this._costs.year = event.target.value;
@@ -2700,6 +2836,35 @@ class VehicleManagerCard extends HTMLElement {
     } catch (err) {
       this._setCostsStatus(t("Exportul nu a reusit: {err}", { err: err?.message || err?.code || err }));
     }
+  }
+
+  _renderCostChart(items, period) {
+    const chart = this._el.costs.querySelector(".c-chart");
+    let buckets;
+    if (period === "all") {
+      const years = [...new Set(items.map((e) => e.date.slice(0, 4)))].sort();
+      buckets = years.map((year) => [year, items.filter((e) => e.date.startsWith(year)).reduce((a, e) => a + e.amount, 0)]);
+    } else {
+      const month = new Intl.DateTimeFormat(uiLocale(this._hass), { month: "short" });
+      buckets = Array.from({ length: 12 }, (_, i) => {
+        const key = `${period}-${String(i + 1).padStart(2, "0")}`;
+        const total = items.filter((e) => e.date.startsWith(key)).reduce((a, e) => a + e.amount, 0);
+        return [month.format(new Date(Number(period), i, 1)).replace(".", ""), total];
+      });
+    }
+    const max = Math.max(0, ...buckets.map(([, total]) => total));
+    chart.hidden = !max;
+    chart.replaceChildren(
+      ...buckets.map(([label, total]) => {
+        const col = document.createElement("div");
+        col.className = "c-col";
+        col.title = `${label}: ${this._money(total)}`;
+        col.innerHTML = `<span class="bar"><span></span></span><span class="lbl"></span>`;
+        col.querySelector(".bar span").style.height = `${max ? Math.max(total ? 3 : 0, (total / max) * 100) : 0}%`;
+        col.querySelector(".lbl").textContent = label;
+        return col;
+      })
+    );
   }
 
   async _deleteExpense(button, expense) {
@@ -2790,6 +2955,9 @@ class VehicleManagerCard extends HTMLElement {
       })
     );
 
+    /* pe luni (anul ales) sau pe ani (toti anii) */
+    this._renderCostChart(costs.year === "all" ? all : items, costs.year);
+
     /* pe categorii */
     const byCategory = new Map();
     for (const e of items) byCategory.set(e.category, (byCategory.get(e.category) || 0) + e.amount);
@@ -2806,6 +2974,7 @@ class VehicleManagerCard extends HTMLElement {
         row.querySelector("ha-icon").setAttribute("icon", icon);
         row.querySelector(".lbl").textContent = label;
         row.querySelector(".fill").style.width = `${max ? Math.max(2, (amount / max) * 100) : 0}%`;
+        row.querySelector(".fill").style.background = categoryColor(key);
         row.querySelector(".amt").textContent = this._money(amount);
         return row;
       })
@@ -2950,6 +3119,7 @@ class VehicleManagerCard extends HTMLElement {
     this._el.themeBtn.setAttribute("aria-expanded", "true");
     this._el.themes.hidden = false;
     this._renderThemes();
+    this._revealPanel(this._el.themes);
   }
 
   _closeThemes() {
@@ -2973,6 +3143,7 @@ class VehicleManagerCard extends HTMLElement {
     const head = document.createElement("div");
     head.className = "th-head";
     head.innerHTML = `<h2>Themes</h2><span class="th-status"></span>`;
+    head.append(this._closeButton(() => this._closeThemes()));
     const status = head.querySelector(".th-status");
     this._themeStatus = status;
     status.textContent =
@@ -3126,6 +3297,23 @@ class VehicleManagerCard extends HTMLElement {
     } catch (err) {
       status.textContent = t("Imaginea nu a putut fi incarcata: {err}", { err: err?.message || err });
     }
+  }
+
+  _closeButton(onClick) {
+    const button = this._themeButton("×", "th-close", onClick);
+    button.title = t("Inchide");
+    button.setAttribute("aria-label", t("Inchide"));
+    return button;
+  }
+
+  /* Pe telefon panoul poate fi sub ecran: il aducem in fata dupa deschidere. */
+  _revealPanel(panel) {
+    requestAnimationFrame(() => {
+      const box = panel.getBoundingClientRect();
+      if (box.top < 0 || box.top > window.innerHeight * 0.6) {
+        panel.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    });
   }
 
   _themeButton(label, className, onClick) {
@@ -3326,12 +3514,16 @@ class VehicleManagerCard extends HTMLElement {
 
     /* --- cap --- */
     el.led.dataset.status = status;
+    el.led.title = t(STATUS_LABEL[status] || "");
     el.title.textContent =
       this._config.title || attributes.vehicle_name || state.attributes.friendly_name || t("Vehicul");
     const subtitleParts = [vehicle.make, vehicle.model, vehicle.year].filter(Boolean);
     el.subtitle.textContent = subtitleParts.join(" · ") || t(STATUS_LABEL[status] || "");
     el.plate.textContent = vehicle.license_plate || "";
     el.plate.hidden = !vehicle.license_plate;
+
+    /* --- rezumat sub caracteristici (umple spatiul gol de pe desktop) --- */
+    this._renderMini(state, documents, entities);
 
     /* --- caracteristici --- */
     el.specList.replaceChildren(
@@ -3408,6 +3600,39 @@ class VehicleManagerCard extends HTMLElement {
       : SPEC_ROWS;
   }
 
+  _renderMini(state, documents, entities) {
+    const tiles = [];
+    const cost = this._hass.states[entities.expenses_year];
+    if (cost && !isNaN(Number(cost.state))) {
+      const currency = cost.attributes.unit_of_measurement || "";
+      tiles.push([t("Costuri {year}", { year: new Date().getFullYear() }), `${formatNumber(Math.round(Number(cost.state)))} ${currency}`]);
+    }
+    const fuel = this._hass.states[entities.fuel_consumption];
+    if (fuel && !isNaN(Number(fuel.state)) && fuel.state !== "") {
+      tiles.push([t("Consum"), `${formatNumber(Number(fuel.state))} ${fuel.attributes.unit_of_measurement || ""}`]);
+    }
+    /* urmatoarea scadenta dintre actele afisate */
+    const remaining = (d) =>
+      d.days ?? (d.km_remaining !== null && d.km_remaining !== undefined ? d.km_remaining / 50 : Infinity);
+    const next = this._visibleDocuments(documents)
+      .filter((d) => d.status !== "unknown")
+      .sort((a, b) => remaining(a) - remaining(b))[0];
+    if (next) tiles.push([t("Urmeaza"), `${t(next.label)} · ${shortRemaining(next)}`, next.status]);
+
+    this._el.mini.hidden = !tiles.length;
+    this._el.mini.replaceChildren(
+      ...tiles.map(([key, value, status]) => {
+        const tile = document.createElement("div");
+        tile.className = "mini-tile";
+        if (status) tile.dataset.status = status;
+        tile.innerHTML = `<span class="k"></span><span class="v"></span>`;
+        tile.querySelector(".k").textContent = key;
+        tile.querySelector(".v").textContent = value;
+        return tile;
+      })
+    );
+  }
+
   _renderUrgent(documents, entities) {
     const limit = clamp(Math.round(Number(this._config.compact_items) || 3), 1, 5);
     /*
@@ -3429,7 +3654,7 @@ class VehicleManagerCard extends HTMLElement {
       node.type = "button";
       node.className = "u-item";
       node.dataset.status = document_.status;
-      node.innerHTML = `<span class="u-dot"></span><span class="u-text"><span class="u-name"></span><span class="u-val"></span></span>`;
+      node.innerHTML = `<ha-icon class="u-dot" icon="${STATUS_ICON[document_.status] || "mdi:circle-outline"}"></ha-icon><span class="u-text"><span class="u-name"></span><span class="u-val"></span></span>`;
       node.querySelector(".u-name").textContent = t(document_.label);
       node.querySelector(".u-val").textContent = this._shortRemaining(document_);
       const entityId =
@@ -3540,9 +3765,17 @@ class VehicleManagerCard extends HTMLElement {
     const offset = circumference * (1 - fraction);
 
     let badge = "—";
-    if (days !== null && days !== undefined) badge = String(days);
-    else if (kmRemaining !== null && kmRemaining !== undefined) {
-      badge = `${Math.round(kmRemaining / 1000)}k`;
+    let unit = "";
+    if (days !== null && days !== undefined) {
+      badge = String(days);
+      unit = Math.abs(days) === 1 ? t("zi") : t("zile");
+    } else if (kmRemaining !== null && kmRemaining !== undefined) {
+      /* "-1,4k" in loc de "-1k": o zecimala sub 10.000 km */
+      const thousands = kmRemaining / 1000;
+      badge = Math.abs(thousands) < 10
+        ? `${formatNumber(Math.round(thousands * 10) / 10)}k`
+        : `${Math.round(thousands)}k`;
+      unit = "km";
     }
 
     const dateText = formatDate(document_.date, language);
@@ -3575,10 +3808,10 @@ class VehicleManagerCard extends HTMLElement {
                   stroke-dasharray="${circumference.toFixed(2)}"
                   stroke-dashoffset="${offset.toFixed(2)}"></circle>
         </svg>
-        <span class="num">${badge}</span>
+        <span class="num">${badge}<small>${unit}</small></span>
       </span>
       <span class="meta">
-        <span class="name">${t(document_.label)}${this._clipBadge(document_.key)}</span>
+        <span class="name">${STATUS_ICON[status] ? `<ha-icon class="st" icon="${STATUS_ICON[status]}"></ha-icon>` : ""}${t(document_.label)}${this._clipBadge(document_.key)}</span>
         <span class="main">${dateText || t(STATUS_LABEL[status] || "Necompletat")}</span>
         <span class="sub">${lines.join(" · ") || t("fara scadenta setata")}</span>
       </span>
@@ -3736,7 +3969,7 @@ ha-card {
 h2 {
   margin: 0 0 12px; display: flex; align-items: center; gap: 10px;
   font: 600 calc(11px * var(--vm-fs, 1))/1 var(--vm-mono, monospace);
-  letter-spacing: .2em; text-transform: uppercase; color: var(--vm-accent, var(--primary-color));
+  letter-spacing: .14em; text-transform: uppercase; color: var(--vm-accent, var(--primary-color));
 }
 h2::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, var(--vm-accent, var(--primary-color)), transparent); opacity: .5; }
 .list { display: flex; flex-direction: column; gap: calc(8px * var(--vm-sp, 1)); }
@@ -3757,7 +3990,7 @@ h2::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg
 .who, .next { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .name { font-weight: 650; font-size: calc(14px * var(--vm-fs, 1)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sub, .k {
-  font: calc(10px * var(--vm-fs, 1))/1.3 var(--vm-mono, monospace); letter-spacing: .12em; text-transform: uppercase;
+  font: calc(11px * var(--vm-fs, 1))/1.3 var(--vm-mono, monospace); letter-spacing: .12em; text-transform: uppercase;
   color: var(--vm-dim, var(--secondary-text-color)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .v { font-size: calc(13px * var(--vm-fs, 1)); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
