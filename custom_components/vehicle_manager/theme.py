@@ -88,6 +88,8 @@ THEME_SCHEMA = vol.Schema(
         vol.Optional("bg_position"): vol.In(("center", "top", "bottom")),
         vol.Optional("bg_overlay"): _number(0, 0.95),
         vol.Optional("bg_blur"): _number(0, 20),
+        # limba cardurilor: "auto" = limba din Home Assistant
+        vol.Optional("language"): vol.In(("auto", "ro", "en")),
     },
     extra=vol.REMOVE_EXTRA,
 )

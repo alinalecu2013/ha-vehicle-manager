@@ -6,7 +6,7 @@ from datetime import timedelta
 from typing import Final
 
 DOMAIN: Final = "vehicle_manager"
-VERSION: Final = "2.0.1"
+VERSION: Final = "2.1.0"
 
 PLATFORMS: Final = [
     "sensor",

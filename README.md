@@ -208,8 +208,11 @@ navigation_path: /lovelace/masini    # optional; altfel se deschid detaliile veh
 
 ### Limba
 
-Cardurile sunt in romana cand Home Assistant e setat pe romana si in engleza altfel
-(**Profil &rsaquo; Limba**).
+Implicit, cardurile sunt in romana cand Home Assistant e setat pe romana si in engleza
+altfel (**Profil &rsaquo; Limba**). Limba se poate alege si direct din dashboard:
+**Themes &rsaquo; Limba &rsaquo; Limba cardurilor** (Automat / Romana / English), apoi
+**Salveaza**. Alegerea se pastreaza pe server, deci e aceeasi pe toate dispozitivele, si se
+aplica ambelor carduri (principal si Garaj), inclusiv formatului datelor si al sumelor.
 
 ### Themes
 

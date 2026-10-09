@@ -6,7 +6,7 @@
  * model 3D rotativ in centru, acte in dreapta.
  */
 
-const CARD_VERSION = "2.0.1";
+const CARD_VERSION = "2.1.0";
 const DEFAULT_THREE = "https://esm.sh/three@0.160.0";
 
 /* ------------------------------------------------------------------ */
@@ -16,8 +16,24 @@ const DEFAULT_THREE = "https://esm.sh/three@0.160.0";
 const detectLang = (code) => (String(code || "").toLowerCase().startsWith("ro") ? "ro" : "en");
 let LANG = detectLang(document.documentElement.lang || navigator.language);
 
+/*
+ * Formatul datelor si al sumelor: cel din Home Assistant daca are aceeasi limba ca
+ * si cardul, altfel formatul obisnuit al limbii cardului.
+ */
+function uiLocale(hass) {
+  const haLocale = hass?.locale?.language || "";
+  if (detectLang(haLocale) === LANG && haLocale) return haLocale;
+  return LANG === "ro" ? "ro-RO" : "en-GB";
+}
+
+/* Limba aleasa in Themes (salvata pe server); "auto" = limba din Home Assistant. */
+let THEME_LANGUAGE = "auto";
+
 function setLanguage(hass) {
-  LANG = detectLang(hass?.locale?.language || hass?.language || LANG);
+  LANG =
+    THEME_LANGUAGE === "ro" || THEME_LANGUAGE === "en"
+      ? THEME_LANGUAGE
+      : detectLang(hass?.locale?.language || hass?.language || LANG);
 }
 
 /* Textele raman in romana in cod; EN are traducerile. {nume} se inlocuieste din vars. */
@@ -28,6 +44,9 @@ function t(text, vars) {
 }
 
 const EN = {
+  "Limba": "Language",
+  "Limba cardurilor": "Card language",
+  "Automat (limba din Home Assistant)": "Automatic (Home Assistant language)",
   "Valabil": "Valid",
   "Expira curand": "Expiring soon",
   "Expirat": "Expired",
@@ -962,12 +981,14 @@ const THEME_DEFAULTS = {
   bg_position: "center",
   bg_overlay: 0.55,
   bg_blur: 0,
+  language: "auto",
 };
 
 /* Preferintele de dimensiuni si imaginea de fundal raman cand alegi o alta presetare. */
 const THEME_LAYOUT_KEYS = [
   "font_family", "font_scale", "spacing", "stage_height",
   "bg_image", "bg_target", "bg_fit", "bg_position", "bg_overlay", "bg_blur",
+  "language",
 ];
 
 const THEME_PRESETS = [
@@ -1123,6 +1144,17 @@ const THEME_GROUPS = [
       },
       { key: "bg_overlay", type: "range", label: "Acoperire cu culoarea de fundal", min: 0, max: 0.95, step: 0.05, format: "percent" },
       { key: "bg_blur", type: "range", label: "Estompare imagine", min: 0, max: 20, step: 1, format: "px" },
+    ],
+  },
+  {
+    title: "Limba",
+    items: [
+      {
+        key: "language",
+        type: "select",
+        label: "Limba cardurilor",
+        options: [["auto", "Automat (limba din Home Assistant)"], ["ro", "Română"], ["en", "English"]],
+      },
     ],
   },
 ];
@@ -1755,6 +1787,8 @@ ha-card::before {
   border: 1px solid var(--vm-line); border-radius: 7px;
 }
 .th-row select {
+  /* optiunile lungi nu ies din casuta grupului */
+  max-width: 190px; min-width: 0; text-overflow: ellipsis;
   font: inherit; font-size: 12px; padding: 5px 8px;
   color: var(--vm-text); background: var(--vm-bg);
   border: 1px solid var(--vm-line); border-radius: 7px;
@@ -2009,7 +2043,26 @@ class VehicleManagerCard extends HTMLElement {
     setLanguage(hass);
     this._hass = hass;
     if (!this._built) this._build();
+    else if (LANG !== this._builtLang) this._relocalize();
     this._subscribeTheme();
+    this._update();
+  }
+
+  /* Limba s-a schimbat: textele fixe sunt in DOM-ul construit o data, deci il refacem. */
+  _relocalize() {
+    if (!this._built) return;
+    setLanguage(this._hass);
+    if (LANG === this._builtLang) return;
+    this._viewer?.dispose();
+    this._viewer = null;
+    this._themeDraft = null;
+    this._unsubscribeCosts();
+    this._costs = null;
+    this._built = false;
+    this._signature = null;
+    this._vehicleKeys = null;
+    this._sceneColorKey = null;
+    this._build();
     this._update();
   }
 
@@ -2247,6 +2300,7 @@ class VehicleManagerCard extends HTMLElement {
 
     this._applyTheme();
     this._built = true;
+    this._builtLang = LANG;
     this._startViewer();
   }
 
@@ -2519,7 +2573,7 @@ class VehicleManagerCard extends HTMLElement {
 
   _money(value) {
     const currency = this._costs?.currency || "RON";
-    const language = this._hass?.locale?.language || "ro-RO";
+    const language = uiLocale(this._hass);
     try {
       return new Intl.NumberFormat(language, { style: "currency", currency }).format(value);
     } catch (err) {
@@ -2675,7 +2729,7 @@ class VehicleManagerCard extends HTMLElement {
     const root = this._el.costs;
     if (!costs || root.hidden) return;
     const all = costs.expenses;
-    const language = this._hass?.locale?.language || "ro-RO";
+    const language = uiLocale(this._hass);
 
     /* perioada: anii cu cheltuieli + anul curent, sau tot istoricul */
     const yearSelect = root.querySelector(".c-year");
@@ -2822,7 +2876,11 @@ class VehicleManagerCard extends HTMLElement {
       .subscribeMessage(
         (message) => {
           this._savedTheme = message.theme || null;
-          if (!this._themeDraft) this._applyTheme();
+          THEME_LANGUAGE = normalizeTheme(this._savedTheme).language;
+          if (!this._themeDraft) {
+            this._applyTheme();
+            this._relocalize();
+          }
         },
         { type: THEME_WS_SUBSCRIBE }
       )
@@ -2972,7 +3030,9 @@ class VehicleManagerCard extends HTMLElement {
       try {
         await this._hass.callWS({ type: THEME_WS_SAVE, theme: this._themeDraft });
         this._savedTheme = { ...this._themeDraft };
+        THEME_LANGUAGE = this._savedTheme.language || "auto";
         this._closeThemes();
+        this._relocalize();
       } catch (err) {
         save.disabled = false;
         status.textContent =
@@ -3261,7 +3321,7 @@ class VehicleManagerCard extends HTMLElement {
     const vehicle = attributes.vehicle || {};
     const documents = attributes.documents || {};
     const entities = attributes.entities || {};
-    const language = this._hass.locale?.language || "ro-RO";
+    const language = uiLocale(this._hass);
     const status = state.state;
 
     /* --- cap --- */
@@ -3728,7 +3788,7 @@ class VehicleManagerGarageCard extends HTMLElement {
   }
 
   setConfig(config) {
-    this._config = { title: t("Garaj"), ...config };
+    this._config = { ...config };
     this._signature = null;
     if (this._hass) this._render();
   }
@@ -3762,7 +3822,11 @@ class VehicleManagerGarageCard extends HTMLElement {
       .subscribeMessage(
         (message) => {
           this._theme = normalizeTheme(message.theme || null);
+          THEME_LANGUAGE = this._theme.language;
+          setLanguage(this._hass);
+          this._signature = null; /* textele se refac in limba aleasa */
           this._applyTheme();
+          this._render();
         },
         { type: THEME_WS_SUBSCRIBE }
       )
