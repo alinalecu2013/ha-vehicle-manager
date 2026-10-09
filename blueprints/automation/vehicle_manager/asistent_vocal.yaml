@@ -1,0 +1,240 @@
+blueprint:
+  name: "Vehicle Manager: asistent vocal"
+  description: >
+    Raspunde in Assist (scris sau vocal, si din aplicatia de pe telefon) la intrebari
+    despre masini: "cand expira ITP-ul", "cand expira RCA la Astra", "ce acte expira",
+    "cat am cheltuit anul acesta", "unde am parcat". Asistentul trebuie sa fie setat
+    pe limba romana.
+  domain: automation
+  source_url: https://github.com/alinalecu2013/ha-vehicle-manager/blob/main/blueprints/automation/vehicle_manager/asistent_vocal.yaml
+  input: {}
+
+mode: parallel
+max: 10
+
+triggers:
+  - trigger: conversation
+    id: when
+    command:
+      - "când expiră {act} la {vehicul}"
+      - "când expiră {act} pentru {vehicul}"
+      - "cand expira {act} la {vehicul}"
+      - "cand expira {act} pentru {vehicul}"
+      - "când e scadent {act} la {vehicul}"
+      - "când e scadent {act} pentru {vehicul}"
+      - "cand e scadent {act} la {vehicul}"
+      - "cand e scadent {act} pentru {vehicul}"
+      - "când expiră {act}"
+      - "cand expira {act}"
+      - "până când e valabil {act}"
+      - "pana cand e valabil {act}"
+      - "când e scadent {act}"
+      - "cand e scadent {act}"
+      - "când e scadentă {act}"
+      - "cand e scadenta {act}"
+      - "când trebuie făcută {act}"
+      - "cand trebuie facuta {act}"
+  - trigger: conversation
+    id: todo
+    command:
+      - "ce acte expiră"
+      - "ce acte expira"
+      - "ce acte trebuie reînnoite"
+      - "ce acte trebuie reinnoite"
+      - "cum stau actele"
+      - "situația actelor"
+      - "situatia actelor"
+  - trigger: conversation
+    id: costs
+    command:
+      - "cât am cheltuit anul acesta"
+      - "cat am cheltuit anul acesta"
+      - "cât am cheltuit anul ăsta"
+      - "cat am cheltuit anul asta"
+      - "cât am cheltuit pe {vehicul}"
+      - "cat am cheltuit pe {vehicul}"
+      - "cât am cheltuit anul acesta pe {vehicul}"
+      - "cat am cheltuit anul acesta pe {vehicul}"
+  - trigger: conversation
+    id: parking
+    command:
+      - "unde am parcat"
+      - "unde e mașina"
+      - "unde e masina"
+      - "unde am parcat {vehicul}"
+      - "unde e {vehicul}"
+
+variables:
+  # textul spus, fara diacritice si cu litere mici, ca sa se potriveasca usor
+  slot_act: >
+    {{ (trigger.slots.act | default('')) | lower | replace('ă','a') | replace('â','a')
+       | replace('î','i') | replace('ș','s') | replace('ş','s') | replace('ț','t') | replace('ţ','t') }}
+  slot_vehicle: >
+    {{ (trigger.slots.vehicul | default('')) | lower | replace('ă','a') | replace('â','a')
+       | replace('î','i') | replace('ș','s') | replace('ş','s') | replace('ț','t') | replace('ţ','t') }}
+  # radacini dupa care se recunoaste actul ("itp-ul", "revizia", "distributia"...)
+  stems:
+    rca: rca
+    itp: itp
+    rovinieta: rovinie
+    casco: casco
+    revizie: reviz
+    distributie: distribu
+    trusa_medicala: trus
+    extinctor: extinct
+    impozit: impozit
+    anvelope: anvelop
+  # masina numita in intrebare (in {vehicul} sau chiar in {act}: "rca la astra");
+  # daca nu e numita niciuna, raspund toate
+  vehicles: >
+    {% set ns = namespace(all=[], named=[]) %}
+    {% set probe = slot_vehicle or slot_act %}
+    {% for s in states.sensor if s.attributes.vm_card is defined and s.attributes.vm_card %}
+      {% set name = s.attributes.vehicle_name | default(s.name) %}
+      {% set plain = name | lower | replace('ă','a') | replace('â','a') | replace('î','i')
+                     | replace('ș','s') | replace('ţ','t') | replace('ț','t') | replace('ş','s') %}
+      {% set words = plain.split(' ') | select('search', '^[a-z0-9]{3,}$') | list %}
+      {% set ns.all = ns.all + [s.entity_id] %}
+      {% if probe and (plain in probe or (slot_vehicle and slot_vehicle in plain)
+                       or (words | select('in', probe) | list | count > 0)) %}
+        {% set ns.named = ns.named + [s.entity_id] %}
+      {% endif %}
+    {% endfor %}
+    {{ ns.named if ns.named else ([] if slot_vehicle else ns.all) }}
+
+actions:
+  - choose:
+      # ---------------------------------------------------- cand expira un act
+      - conditions:
+          - condition: trigger
+            id: when
+        sequence:
+          - variables:
+              doc_key: >
+                {% set ns = namespace(key='') %}
+                {% for key, stem in stems.items() if not ns.key and stem in slot_act %}
+                  {% set ns.key = key %}
+                {% endfor %}
+                {{ ns.key }}
+              answer: >
+                {% if not doc_key %}
+                  Nu stiu ce act este "{{ trigger.slots.act }}". Poti intreba de RCA, ITP, rovinieta,
+                  CASCO, revizie, distributie, trusa medicala, extinctor, impozit sau anvelope.
+                {% elif not vehicles %}
+                  Nu am gasit nicio masina{{ ' care sa se potriveasca' if slot_vehicle }}.
+                {% else %}
+                  {% set ns = namespace(parts=[]) %}
+                  {% for v in vehicles %}
+                    {% set d = state_attr(v, 'documents')[doc_key] %}
+                    {% set who = state_attr(v, 'vehicle_name') %}
+                    {% if d.days is not none %}
+                      {% set when = (d.date | as_datetime).strftime('%d.%m.%Y') %}
+                      {% if d.days < 0 %}
+                        {% set ns.parts = ns.parts + [d.label ~ ' la ' ~ who ~ ' a expirat pe ' ~ when ~ ', acum ' ~ (-d.days) ~ ' zile'] %}
+                      {% elif d.days == 0 %}
+                        {% set ns.parts = ns.parts + [d.label ~ ' la ' ~ who ~ ' expira azi'] %}
+                      {% else %}
+                        {% set ns.parts = ns.parts + [d.label ~ ' la ' ~ who ~ ' expira pe ' ~ when ~ ', peste ' ~ d.days ~ (' zi' if d.days == 1 else ' zile')] %}
+                      {% endif %}
+                    {% elif d.km_remaining is not none %}
+                      {% if d.km_remaining < 0 %}
+                        {% set ns.parts = ns.parts + [d.label ~ ' la ' ~ who ~ ' e depasita cu ' ~ (-d.km_remaining) ~ ' de kilometri'] %}
+                      {% else %}
+                        {% set ns.parts = ns.parts + [d.label ~ ' la ' ~ who ~ ': mai sunt ' ~ d.km_remaining ~ ' de kilometri'] %}
+                      {% endif %}
+                    {% else %}
+                      {% set ns.parts = ns.parts + [d.label ~ ' la ' ~ who ~ ' nu are scadenta completata'] %}
+                    {% endif %}
+                  {% endfor %}
+                  {{ ns.parts | join('. ') }}.
+                {% endif %}
+          - set_conversation_response: "{{ answer | trim }}"
+
+      # ---------------------------------------------------- ce acte trebuie rezolvate
+      - conditions:
+          - condition: trigger
+            id: todo
+        sequence:
+          - variables:
+              answer: >
+                {% set ns = namespace(parts=[]) %}
+                {% for v in vehicles %}
+                  {% set items = state_attr(v, 'documents').values()
+                       | selectattr('status', 'in', ['warning', 'expired']) | list %}
+                  {% if items %}
+                    {% set ns2 = namespace(txt=[]) %}
+                    {% for d in items %}
+                      {% if d.status == 'expired' %}
+                        {% set ns2.txt = ns2.txt + [d.label ~ ' (expirat)'] %}
+                      {% elif d.days is not none %}
+                        {% set ns2.txt = ns2.txt + [d.label ~ ' (' ~ d.days ~ ' zile)'] %}
+                      {% else %}
+                        {% set ns2.txt = ns2.txt + [d.label ~ ' (' ~ d.km_remaining ~ ' km)'] %}
+                      {% endif %}
+                    {% endfor %}
+                    {% set ns.parts = ns.parts + [state_attr(v, 'vehicle_name') ~ ': ' ~ ns2.txt | join(', ')] %}
+                  {% endif %}
+                {% endfor %}
+                {% if not vehicles %}Nu am gasit nicio masina.
+                {% elif ns.parts %}Acte de rezolvat. {{ ns.parts | join('. ') }}.
+                {% else %}Toate actele sunt in regula.{% endif %}
+          - set_conversation_response: "{{ answer | trim }}"
+
+      # ---------------------------------------------------- cat am cheltuit
+      - conditions:
+          - condition: trigger
+            id: costs
+        sequence:
+          - variables:
+              answer: >
+                {% set ns = namespace(names=[], amounts=[], unit='') %}
+                {% for v in vehicles %}
+                  {% set sensor = (state_attr(v, 'entities') or {}).get('expenses_year') %}
+                  {% if sensor and states(sensor) | is_number %}
+                    {% set ns.unit = state_attr(sensor, 'unit_of_measurement') or '' %}
+                    {% set ns.names = ns.names + [state_attr(v, 'vehicle_name')] %}
+                    {% set ns.amounts = ns.amounts + [states(sensor) | float(0) | round(0) | int] %}
+                  {% endif %}
+                {% endfor %}
+                {% if not ns.names %}Nu am gasit cheltuieli inregistrate.
+                {% elif ns.names | count == 1 %}Anul acesta ai cheltuit {{ ns.amounts[0] }} {{ ns.unit }} pe {{ ns.names[0] }}.
+                {% else %}
+                  {% set ns2 = namespace(parts=[]) %}
+                  {% for i in range(ns.names | count) %}
+                    {% set ns2.parts = ns2.parts + [ns.names[i] ~ ' ' ~ ns.amounts[i] ~ ' ' ~ ns.unit] %}
+                  {% endfor %}
+                  Anul acesta ai cheltuit in total {{ ns.amounts | sum }} {{ ns.unit }}: {{ ns2.parts | join(', ') }}.
+                {% endif %}
+          - set_conversation_response: "{{ answer | trim }}"
+
+      # ---------------------------------------------------- unde am parcat
+      - conditions:
+          - condition: trigger
+            id: parking
+        sequence:
+          - variables:
+              answer: >
+                {% set ns = namespace(parts=[]) %}
+                {% for v in vehicles %}
+                  {% set p = (state_attr(v, 'vehicle') or {}).get('parking') %}
+                  {% set who = state_attr(v, 'vehicle_name') %}
+                  {% if p and p.state == 'driving' %}
+                    {% set ns.parts = ns.parts + [who ~ ' e in mers'] %}
+                  {% elif p and p.latitude is defined %}
+                    {# relative_time din HA raspunde in engleza; calculam in romana #}
+                    {% set minutes = ((now() - as_datetime(p.time)).total_seconds() / 60) | int %}
+                    {% if minutes < 60 %}
+                      {% set ago = (minutes | string) ~ (' minut' if minutes == 1 else ' minute') %}
+                    {% elif minutes < 1440 %}
+                      {% set hours = (minutes / 60) | round(0) | int %}
+                      {% set ago = (hours | string) ~ (' ora' if hours == 1 else ' ore') %}
+                    {% else %}
+                      {% set days = (minutes / 1440) | round(0) | int %}
+                      {% set ago = (days | string) ~ (' zi' if days == 1 else ' zile') %}
+                    {% endif %}
+                    {% set ns.parts = ns.parts + [who ~ ' e parcata de ' ~ ago] %}
+                  {% endif %}
+                {% endfor %}
+                {% if ns.parts %}{{ ns.parts | join('. ') }}. Locul exact e pe harta din Home Assistant si in cardul masinii.
+                {% else %}Nu am un loc de parcare salvat. Il poti activa din configurarea masinii, la "Unde am parcat".{% endif %}
+          - set_conversation_response: "{{ answer | trim }}"
