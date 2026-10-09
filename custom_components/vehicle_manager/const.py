@@ -6,7 +6,7 @@ from datetime import timedelta
 from typing import Final
 
 DOMAIN: Final = "vehicle_manager"
-VERSION: Final = "1.6.0"
+VERSION: Final = "1.7.0"
 
 PLATFORMS: Final = ["sensor", "binary_sensor", "number", "date", "image", "calendar"]
 
@@ -24,6 +24,8 @@ CONF_MAKE: Final = "make"
 CONF_MODEL: Final = "model"
 CONF_YEAR: Final = "year"
 CONF_MILEAGE: Final = "mileage"
+# Senzorul din care se preia automat kilometrajul (optional)
+CONF_MILEAGE_SOURCE: Final = "mileage_source"
 CONF_COLOR: Final = "color"
 CONF_ENGINE_CAPACITY: Final = "engine_capacity"
 CONF_FUEL_TYPE: Final = "fuel_type"

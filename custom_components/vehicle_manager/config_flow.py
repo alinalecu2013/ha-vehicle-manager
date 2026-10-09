@@ -27,6 +27,7 @@ from .const import (
     CONF_MAKE,
     CONF_MEDIA_ID,
     CONF_MILEAGE,
+    CONF_MILEAGE_SOURCE,
     CONF_MODEL,
     CONF_MODEL_3D,
     CONF_MODEL_3D_UPLOAD,
@@ -353,7 +354,7 @@ class VehicleManagerOptionsFlow(OptionsFlow):
         """Meniul principal."""
         return self.async_show_menu(
             step_id="init",
-            menu_options=["vehicle", "documents", "media", "thresholds"],
+            menu_options=["vehicle", "documents", "media", "thresholds", "mileage_source"],
         )
 
     async def async_step_vehicle(
@@ -432,6 +433,42 @@ class VehicleManagerOptionsFlow(OptionsFlow):
                 "photo": self._current.get(CONF_PHOTO) or "-",
                 "model_3d": self._current.get(CONF_MODEL_3D) or "-",
             },
+        )
+
+    async def async_step_mileage_source(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Alege senzorul din care se preia automat kilometrajul."""
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            source = user_input.get(CONF_MILEAGE_SOURCE)
+            if not source:
+                return await self._async_save({}, {CONF_MILEAGE_SOURCE})
+            state = self.hass.states.get(source)
+            usable = state is None or state.state in ("unknown", "unavailable")
+            if not usable:
+                from .mileage import mileage_from_state
+
+                usable = mileage_from_state(state) is not None
+            if usable:
+                return await self._async_save({CONF_MILEAGE_SOURCE: source}, set())
+            errors[CONF_MILEAGE_SOURCE] = "not_numeric"
+
+        return self.async_show_form(
+            step_id="mileage_source",
+            data_schema=self.add_suggested_values_to_schema(
+                vol.Schema(
+                    {
+                        vol.Optional(CONF_MILEAGE_SOURCE): selector.EntitySelector(
+                            selector.EntitySelectorConfig(
+                                domain=["sensor", "number", "input_number"]
+                            )
+                        )
+                    }
+                ),
+                user_input or self._current,
+            ),
+            errors=errors,
         )
 
     async def async_step_thresholds(

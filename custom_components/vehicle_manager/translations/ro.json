@@ -66,7 +66,8 @@
           "vehicle": "Caracteristici vehicul",
           "documents": "Acte si scadente",
           "media": "Poza si model 3D",
-          "thresholds": "Praguri de avertizare"
+          "thresholds": "Praguri de avertizare",
+          "mileage_source": "Kilometraj automat"
         }
       },
       "vehicle": {
@@ -106,6 +107,11 @@
           "model_3d": "URL model 3D"
         }
       },
+      "mileage_source": {
+        "title": "Kilometraj automat",
+        "description": "Alege un senzor care raporteaza kilometrajul (adaptor OBD, aplicatia producatorului, Android Auto...). Kilometrajul vehiculului se actualizeaza apoi automat. Se aplica doar cresterile, deci o citire gresita nu il poate scadea; milele si metrii se convertesc in km. Goleste campul ca sa revii la kilometrajul manual.",
+        "data": { "mileage_source": "Senzor kilometraj" }
+      },
       "thresholds": {
         "title": "Praguri de avertizare",
         "data": {
@@ -113,6 +119,9 @@
           "warn_km": "Avertizare cu cati km inainte"
         }
       }
+    },
+    "error": {
+      "not_numeric": "Entitatea aleasa nu raporteaza un numar in km, mi sau m."
     }
   },
   "selector": {

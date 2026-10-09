@@ -20,6 +20,7 @@ from .const import (
     CONF_FUEL_TYPE,
     CONF_MAKE,
     CONF_MILEAGE,
+    CONF_MILEAGE_SOURCE,
     CONF_MODEL,
     CONF_MODEL_3D,
     CONF_PHOTO,
@@ -223,6 +224,8 @@ class VehicleCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             CONF_PLATE: opts.get(CONF_PLATE),
             CONF_VIN: opts.get(CONF_VIN),
             CONF_MILEAGE: mileage,
+            # kilometrajul vine automat dintr-un senzor (vezi mileage.py)
+            "mileage_auto": bool(opts.get(CONF_MILEAGE_SOURCE)),
         }
 
         return {

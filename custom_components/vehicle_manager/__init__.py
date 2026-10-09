@@ -55,6 +55,7 @@ from .const import (
 )
 from .coordinator import VehicleCoordinator, as_date, as_int
 from .costs import EXPENSE_FIELDS, async_setup_costs, get_cost_manager
+from .mileage import MileageTracker
 from .theme import async_setup_theme
 
 _LOGGER = logging.getLogger(__name__)
@@ -62,6 +63,7 @@ _LOGGER = logging.getLogger(__name__)
 DATA_COORDINATORS = "coordinators"
 DATA_FRONTEND = "frontend_registered"
 DATA_SERVICES = "services_registered"
+DATA_MILEAGE = "mileage_trackers"
 
 
 def add_months(start: date, months: int) -> date:
@@ -97,6 +99,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_entry_updated))
 
+    tracker = MileageTracker(hass, coordinator)
+    domain_data.setdefault(DATA_MILEAGE, {})[entry.entry_id] = tracker
+    entry.async_on_unload(tracker.async_stop)
+    tracker.async_refresh_source()
+
     _async_register_services(hass)
     return True
 
@@ -106,6 +113,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unloaded:
         hass.data[DOMAIN][DATA_COORDINATORS].pop(entry.entry_id, None)
+        hass.data[DOMAIN].get(DATA_MILEAGE, {}).pop(entry.entry_id, None)
     return unloaded
 
 
@@ -139,6 +147,11 @@ async def _async_entry_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
         return
     # Titlul poate fi schimbat din options flow; entitatile il citesc din entry.
     coordinator.handle_entry_update()
+    tracker: MileageTracker | None = (
+        hass.data.get(DOMAIN, {}).get(DATA_MILEAGE, {}).get(entry.entry_id)
+    )
+    if tracker is not None:
+        tracker.async_refresh_source()
 
 
 async def _async_ensure_media_dir(hass: HomeAssistant) -> None:

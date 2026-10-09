@@ -6,7 +6,7 @@
  * model 3D rotativ in centru, acte in dreapta.
  */
 
-const CARD_VERSION = "1.6.0";
+const CARD_VERSION = "1.7.0";
 const DEFAULT_THREE = "https://esm.sh/three@0.160.0";
 
 console.info(
@@ -32,7 +32,7 @@ const SPEC_ROWS = [
   { key: "make", label: "Marca", icon: "mdi:car-side" },
   { key: "model", label: "Model", icon: "mdi:car-info" },
   { key: "year", label: "An fabricatie", icon: "mdi:calendar-blank" },
-  { key: "mileage", label: "Kilometraj", icon: "mdi:counter", unit: "km", entity: "mileage" },
+  { key: "mileage", label: "Kilometraj", icon: "mdi:counter", unit: "km", entity: "mileage", auto: "mileage_auto" },
   { key: "color", label: "Culoare", icon: "mdi:palette", swatch: true },
   { key: "engine_capacity", label: "Capacitate motor", icon: "mdi:engine", unit: "cm³" },
   { key: "fuel_type", label: "Combustibil", icon: "mdi:gas-station", useLabel: "fuel_label" },
@@ -1194,6 +1194,11 @@ ha-card::before {
 .spec .v {
   font-size: calc(13.5px * var(--vm-fs)); font-weight: 600; text-align: right;
   display: inline-flex; align-items: center; gap: 6px;
+}
+.spec .auto {
+  font: 600 calc(8.5px * var(--vm-fs))/1 var(--vm-mono); letter-spacing: .12em; text-transform: uppercase;
+  padding: 3px 5px; border-radius: 5px;
+  color: var(--vm-accent); border: 1px solid color-mix(in srgb, var(--vm-accent) 55%, transparent);
 }
 .swatch {
   width: 12px; height: 12px; border-radius: 3px;
@@ -2782,6 +2787,7 @@ class VehicleManagerCard extends HTMLElement {
       <span class="k">${row.label}</span>
       <span class="v">
         ${row.swatch && vehicle.color_hex ? `<span class="swatch" style="background:${vehicle.color_hex}"></span>` : ""}
+        ${row.auto && vehicle[row.auto] ? `<span class="auto" title="Preluat automat din senzor">auto</span>` : ""}
         <span>${value}</span>
       </span>
     `;

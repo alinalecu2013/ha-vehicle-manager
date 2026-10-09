@@ -208,6 +208,24 @@ Daca three.js nu poate fi incarcat si vehiculul are poza, cardul comuta automat 
 Pragurile de avertizare (implicit 30 de zile si 1000 km) se configureaza per vehicul din
 **Configurare &rsaquo; Praguri de avertizare**.
 
+## Kilometraj automat
+
+Kilometrajul se poate prelua automat dintr-un senzor existent in Home Assistant: adaptor
+OBD (ex. Torque, WiCAN), aplicatia producatorului masinii, Android Auto etc.
+
+1. **Setari &rsaquo; Dispozitive si servicii &rsaquo; Vehicle Manager &rsaquo; Configurare**
+   la vehiculul dorit.
+2. Alege **Kilometraj automat** si selecteaza senzorul care raporteaza odometrul.
+
+- Se aplica doar cresterile: o citire gresita (0, `unavailable`, senzor resetat) nu poate
+  scadea kilometrajul.
+- Valorile in mile (`mi`) sau metri (`m`) se convertesc in km; fara unitate se presupun km.
+- In mers, kilometrajul se salveaza cel mult o data la 5 minute (ultima valoare nu se
+  pierde), ca sa nu se scrie inutil pe disc.
+- Kilometrajul se poate modifica in continuare si manual. In card apare eticheta **AUTO**
+  langa kilometraj cand acesta vine dintr-un senzor.
+- Pentru a reveni la kilometrajul manual, goleste campul.
+
 ## Calendar
 
 Fiecare vehicul are o entitate `calendar.<vehicul>_scadente` cu toate actele care au o

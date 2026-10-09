@@ -66,7 +66,8 @@
           "vehicle": "Vehicle characteristics",
           "documents": "Documents and due dates",
           "media": "Photo and 3D model",
-          "thresholds": "Warning thresholds"
+          "thresholds": "Warning thresholds",
+          "mileage_source": "Automatic mileage"
         }
       },
       "vehicle": {
@@ -106,6 +107,11 @@
           "model_3d": "3D model URL"
         }
       },
+      "mileage_source": {
+        "title": "Automatic mileage",
+        "description": "Pick a sensor that reports the odometer (OBD adapter, the car maker's app, Android Auto...). The vehicle mileage is then updated automatically. Only increases are applied, so a wrong reading cannot lower it; miles and meters are converted to km. Clear the field to go back to manual mileage.",
+        "data": { "mileage_source": "Odometer sensor" }
+      },
       "thresholds": {
         "title": "Warning thresholds",
         "data": {
@@ -113,6 +119,9 @@
           "warn_km": "Warn this many km ahead"
         }
       }
+    },
+    "error": {
+      "not_numeric": "The selected entity does not report a number in km, mi or m."
     }
   },
   "selector": {
