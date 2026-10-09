@@ -423,6 +423,10 @@ automation:
 
 ## Detalii de implementare
 
+- Iconita integrarii e in `custom_components/vehicle_manager/brand/` (`icon.png`,
+  `icon@2x.png`). Home Assistant 2026.3+ o afiseaza singur pentru integrarile custom, fara
+  inscriere in `home-assistant/brands`.
+
 - Sursa cardului este `custom_components/vehicle_manager/www/vehicle-manager-card.js`.
   La o versiune noua: actualizeaza versiunea in `const.py`, `manifest.json` si
   `CARD_VERSION` din card, publica release-ul integrarii, apoi ruleaza
