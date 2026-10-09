@@ -632,6 +632,12 @@ class CarViewer {
  * Tema e salvata pe server (vehicle_manager/theme/*), deci e aceeasi pe toate
  * dispozitivele. Cheile si limitele trebuie sa ramana sincronizate cu theme.py.
  */
+const FILES_WS_SUBSCRIBE = "vehicle_manager/files/subscribe";
+const FILES_WS_DELETE = "vehicle_manager/files/delete";
+const FILES_URL = "/api/vehicle_manager/files";
+/* Pe langa acte: talon, cartea masinii etc. (GENERAL_SLOT din files.py) */
+const FILES_GENERAL = ["general", "Alte documente (talon, cartea masinii...)", "mdi:folder-outline"];
+
 const EXPENSES_WS_SUBSCRIBE = "vehicle_manager/expenses/subscribe";
 const EXPENSES_WS_ADD = "vehicle_manager/expenses/add";
 const EXPENSES_WS_DELETE = "vehicle_manager/expenses/delete";
@@ -1350,7 +1356,7 @@ ha-card::before {
 .empty code { color: var(--vm-accent); }
 
 /* ---- meniul Themes si panoul Costuri ---- */
-.themes, .costs {
+.themes, .costs, .files {
   margin-top: calc(12px * var(--vm-sp));
   padding: 14px;
   border-radius: calc(14px * var(--vm-r));
@@ -1359,7 +1365,48 @@ ha-card::before {
   box-shadow: 0 0 calc(24px * var(--vm-glow)) color-mix(in srgb, var(--vm-accent) 18%, transparent);
   font-size: 13px;
 }
-.themes[hidden], .costs[hidden] { display: none; }
+.themes[hidden], .costs[hidden], .files[hidden] { display: none; }
+
+/* ---- dosarul cu documente ---- */
+.f-list { display: flex; flex-direction: column; gap: 8px; }
+.f-slot {
+  display: grid; grid-template-columns: 22px minmax(110px, 180px) 1fr auto;
+  gap: 10px; align-items: center; padding: 8px 10px;
+  border-radius: 10px; border: 1px solid var(--vm-line); background: var(--vm-soft);
+}
+.f-slot > ha-icon { --mdc-icon-size: 18px; color: var(--vm-dim); }
+.f-slot .lbl { font-weight: 600; font-size: 13px; }
+.f-chips { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.f-chip {
+  display: inline-flex; align-items: center; gap: 4px; max-width: 220px;
+  padding: 4px 4px 4px 8px; border-radius: 8px; font-size: 12px;
+  color: var(--vm-text); background: color-mix(in srgb, var(--vm-accent) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--vm-accent) 35%, transparent);
+}
+.f-chip .open {
+  display: inline-flex; align-items: center; gap: 4px; min-width: 0; cursor: pointer;
+  background: none; border: 0; color: inherit; font: inherit; padding: 0;
+}
+.f-chip .open span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.f-chip ha-icon { --mdc-icon-size: 15px; flex: none; }
+.f-chip .del {
+  border: 0; background: none; color: var(--vm-dim); cursor: pointer;
+  font: 600 13px/1 var(--vm-mono); padding: 2px 5px; border-radius: 6px;
+}
+.f-chip .del[data-confirm="true"] { color: var(--vm-bad); }
+.f-empty { font-size: 12px; color: var(--vm-dim); }
+.f-slot .btn { padding: 7px 10px; font-size: 10px; }
+.f-slot input[type="file"] { display: none; }
+@media (max-width: 560px) {
+  .f-slot { grid-template-columns: 22px 1fr auto; }
+  .f-chips { grid-column: 1 / -1; }
+}
+
+.doc .clip {
+  display: inline-flex; align-items: center; gap: 1px;
+  font: 600 10px/1 var(--vm-mono); color: var(--vm-accent);
+}
+.doc .clip ha-icon { --mdc-icon-size: 13px; color: var(--vm-accent); }
 
 .th-head {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
@@ -1555,6 +1602,8 @@ ha-card::before {
 .vm.compact .themes-btn,
 .vm.compact .costs,
 .vm.compact .costs-btn,
+.vm.compact .files,
+.vm.compact .files-btn,
 .vm.compact .settings,
 .vm.compact .hud,
 .vm.compact .bracket,
@@ -1669,6 +1718,7 @@ class VehicleManagerCard extends HTMLElement {
       show_photo_toggle: true,
       show_theme_button: true,
       show_costs_button: true,
+      show_files_button: true,
       compact: false,
       compact_items: 3,
       three_src: DEFAULT_THREE,
@@ -1678,6 +1728,7 @@ class VehicleManagerCard extends HTMLElement {
     if (this._built) {
       this._el.themeBtn.hidden = this._config.show_theme_button === false;
       this._el.costsBtn.hidden = this._config.show_costs_button === false;
+      this._el.filesBtn.hidden = this._config.show_files_button === false;
       this._applyLayout();
       this._applyTheme();
       this._viewer?.setOptions({
@@ -1715,6 +1766,8 @@ class VehicleManagerCard extends HTMLElement {
     this._unsubscribeTheme();
     this._unsubscribeCosts();
     this._costs = null;
+    this._unsubscribeFiles();
+    this._files = null;
   }
 
   /* --------------------------------------------------------------- */
@@ -1795,6 +1848,10 @@ class VehicleManagerCard extends HTMLElement {
             <ha-icon icon="mdi:cash-multiple"></ha-icon>
             <span>Costuri</span>
           </button>
+          <button class="icon-btn files-btn" title="Dosarul masinii: polite, talon..." aria-expanded="false">
+            <ha-icon icon="mdi:folder-file-outline"></ha-icon>
+            <span>Dosar</span>
+          </button>
           <button class="icon-btn themes-btn" title="Themes" aria-expanded="false">
             <ha-icon icon="mdi:palette-outline"></ha-icon>
             <span>Themes</span>
@@ -1809,6 +1866,7 @@ class VehicleManagerCard extends HTMLElement {
 
         <section class="themes" hidden></section>
         <section class="costs" hidden></section>
+        <section class="files" hidden></section>
 
         <div class="body">
           <section class="panel specs">
@@ -1868,6 +1926,8 @@ class VehicleManagerCard extends HTMLElement {
       themes: card.querySelector(".themes"),
       costs: card.querySelector(".costs"),
       costsBtn: card.querySelector(".costs-btn"),
+      files: card.querySelector(".files"),
+      filesBtn: card.querySelector(".files-btn"),
       cardBg: card.querySelector(".card-bg"),
       stageBg: card.querySelector(".stage-bg"),
       specList: card.querySelector(".spec-list"),
@@ -1907,6 +1967,11 @@ class VehicleManagerCard extends HTMLElement {
     this._el.openBtn.addEventListener("click", openPage);
     this._applyLayout();
 
+    this._el.filesBtn.hidden = this._config.show_files_button === false;
+    this._el.filesBtn.addEventListener("click", () =>
+      this._el.files.hidden ? this._openFiles() : this._closeFiles()
+    );
+
     this._el.costsBtn.hidden = this._config.show_costs_button === false;
     this._el.costsBtn.addEventListener("click", () =>
       this._el.costs.hidden ? this._openCosts() : this._closeCosts()
@@ -1928,6 +1993,198 @@ class VehicleManagerCard extends HTMLElement {
     this._el.top.dataset.nav = String(compact && Boolean(this._config.navigation_path));
     if (compact && !this._el.themes.hidden) this._closeThemes();
     if (compact && this._costs) this._closeCosts();
+    if (compact && !this._el.files.hidden) this._closeFiles();
+  }
+
+  /* --------------------------------------------------------------- */
+  /* Dosar (documente scanate)                                        */
+  /* --------------------------------------------------------------- */
+  _subscribeFiles() {
+    this._unsubscribeFiles();
+    const entryId = this._entryId;
+    const connection = this._hass?.connection;
+    this._files = undefined;
+    if (!entryId || !connection) return;
+
+    this._filesEntry = entryId;
+    this._filesUnsub = connection
+      .subscribeMessage(
+        (message) => {
+          if (this._filesEntry !== entryId) return;
+          this._files = message.files || [];
+          /* agrafele din lista de acte + panoul, daca e deschis */
+          this._signature = null;
+          this._update();
+          if (!this._el.files.hidden) this._renderFiles();
+        },
+        { type: FILES_WS_SUBSCRIBE, entry_id: entryId }
+      )
+      .catch(() => {
+        /* integrare veche: fara dosar */
+        this._files = null;
+        if (!this._el.files.hidden) this._renderFiles();
+        return null;
+      });
+  }
+
+  _unsubscribeFiles() {
+    const pending = this._filesUnsub;
+    this._filesUnsub = null;
+    this._filesEntry = null;
+    pending?.then((unsub) => unsub?.()).catch(() => {});
+  }
+
+  _clipBadge(slot) {
+    const count = (this._files || []).filter((f) => f.slot === slot).length;
+    return count
+      ? ` <span class="clip" title="${count} fisier(e) in dosar"><ha-icon icon="mdi:paperclip"></ha-icon>${count}</span>`
+      : "";
+  }
+
+  _openFiles() {
+    if (!this._el.themes.hidden) this._closeThemes();
+    if (this._costs) this._closeCosts();
+    this._el.filesBtn.setAttribute("aria-expanded", "true");
+    this._el.files.hidden = false;
+    this._renderFiles();
+  }
+
+  _closeFiles() {
+    this._el.filesBtn.setAttribute("aria-expanded", "false");
+    this._el.files.hidden = true;
+    this._el.files.replaceChildren();
+  }
+
+  _setFilesStatus(text) {
+    const status = this._el.files.querySelector(".f-status");
+    if (status) status.textContent = text;
+  }
+
+  _renderFiles() {
+    const root = this._el.files;
+    const previous = root.querySelector(".f-status")?.textContent;
+    const docs = this._visibleDocuments(this._documents || {});
+    const slots = [...docs.map((d) => [d.key, d.label, d.icon]), FILES_GENERAL];
+
+    const head = document.createElement("div");
+    head.className = "th-head";
+    head.innerHTML = `<h2>Dosar</h2><span class="th-status f-status"></span>`;
+    head.querySelector(".f-status").textContent =
+      previous ||
+      (this._files === null
+        ? "Dosarul nu poate fi incarcat (actualizeaza integrarea si restarteaza Home Assistant)."
+        : this._files === undefined
+        ? "Se incarca..."
+        : "Poze sau PDF-uri cu actele masinii. Se deschid doar din Home Assistant.");
+
+    const list = document.createElement("div");
+    list.className = "f-list";
+    for (const [slot, label, icon] of slots) {
+      const row = document.createElement("div");
+      row.className = "f-slot";
+      row.innerHTML = `<ha-icon></ha-icon><span class="lbl"></span><span class="f-chips"></span>`;
+      row.querySelector("ha-icon").setAttribute("icon", icon);
+      row.querySelector(".lbl").textContent = label;
+
+      const chips = row.querySelector(".f-chips");
+      const items = (this._files || []).filter((f) => f.slot === slot);
+      if (!items.length) {
+        const empty = document.createElement("span");
+        empty.className = "f-empty";
+        empty.textContent = "niciun fisier";
+        chips.append(empty);
+      }
+      for (const item of items) chips.append(this._fileChip(item));
+
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/*,application/pdf";
+      const add = this._themeButton("Adauga", "btn", () => input.click());
+      input.addEventListener("change", async () => {
+        const file = input.files?.[0];
+        if (!file) return;
+        add.disabled = true;
+        await this._uploadFile(slot, file);
+        add.disabled = false;
+        input.value = "";
+      });
+      row.append(add, input);
+      list.append(row);
+    }
+    root.replaceChildren(head, list);
+  }
+
+  _fileChip(item) {
+    const chip = document.createElement("span");
+    chip.className = "f-chip";
+    chip.innerHTML = `<button class="open" type="button"><ha-icon></ha-icon><span></span></button>
+      <button class="del" type="button" title="Sterge">×</button>`;
+    chip.querySelector("ha-icon").setAttribute(
+      "icon",
+      item.mime === "application/pdf" ? "mdi:file-pdf-box" : "mdi:file-image-outline"
+    );
+    chip.querySelector(".open span").textContent = item.name;
+    chip.querySelector(".open").title = `${item.name} · ${formatNumber(Math.round(item.size / 1024))} KB`;
+    chip.querySelector(".open").addEventListener("click", () => this._openFile(item));
+    const del = chip.querySelector(".del");
+    del.addEventListener("click", async () => {
+      /* primul click cere confirmare, al doilea sterge */
+      if (del.dataset.confirm !== "true") {
+        del.dataset.confirm = "true";
+        del.textContent = "sterge?";
+        setTimeout(() => {
+          if (del.isConnected) {
+            del.dataset.confirm = "false";
+            del.textContent = "×";
+          }
+        }, 3000);
+        return;
+      }
+      try {
+        await this._hass.callWS({ type: FILES_WS_DELETE, file_id: item.id });
+      } catch (err) {
+        this._setFilesStatus(`Fisierul nu a putut fi sters: ${err?.message || err?.code || err}`);
+      }
+    });
+    return chip;
+  }
+
+  async _openFile(item) {
+    try {
+      const signed = await this._hass.callWS({
+        type: "auth/sign_path",
+        path: `${FILES_URL}/${this._filesEntry}/${item.id}`,
+        expires: 60,
+      });
+      window.open(this._hass.hassUrl ? this._hass.hassUrl(signed.path) : signed.path, "_blank");
+    } catch (err) {
+      this._setFilesStatus(`Fisierul nu a putut fi deschis: ${err?.message || err?.code || err}`);
+    }
+  }
+
+  async _uploadFile(slot, file) {
+    this._setFilesStatus("Se incarca...");
+    try {
+      const prepared = file.type.startsWith("image/") ? await shrinkImage(file) : file;
+      const form = new FormData();
+      form.append("file", prepared, file.name || "document");
+      const url = `${FILES_URL}/${this._filesEntry}/${slot}`;
+      const response = this._hass.fetchWithAuth
+        ? await this._hass.fetchWithAuth(url, { method: "POST", body: form })
+        : await fetch(url, {
+            method: "POST",
+            body: form,
+            headers: { Authorization: `Bearer ${this._hass.auth?.data?.access_token}` },
+          });
+      if (response.status === 404 && !this._files) {
+        throw new Error("serverul ruleaza o versiune veche a integrarii");
+      }
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.message || `HTTP ${response.status}`);
+      this._setFilesStatus(`Incarcat: ${body.name}.`);
+    } catch (err) {
+      this._setFilesStatus(`Fisierul nu a putut fi incarcat: ${err?.message || err}`);
+    }
   }
 
   /* --------------------------------------------------------------- */
@@ -1935,6 +2192,7 @@ class VehicleManagerCard extends HTMLElement {
   /* --------------------------------------------------------------- */
   _openCosts() {
     if (!this._el.themes.hidden) this._closeThemes();
+    if (!this._el.files.hidden) this._closeFiles();
     this._costs = {
       expenses: [],
       currency: null,
@@ -2364,6 +2622,7 @@ class VehicleManagerCard extends HTMLElement {
 
   _openThemes() {
     if (this._costs) this._closeCosts();
+    if (!this._el.files.hidden) this._closeFiles();
     this._themeDraft = { ...this._baseTheme() };
     this._el.themeBtn.setAttribute("aria-expanded", "true");
     this._el.themes.hidden = false;
@@ -2768,6 +3027,9 @@ class VehicleManagerCard extends HTMLElement {
     this._entryId = attributes.entry_id || null;
     this._mileage = vehicle.mileage ?? null;
     this._electric = vehicle.fuel_type === "electric";
+    this._documents = documents;
+    /* fisierele se urmaresc mereu (pentru agrafele din lista de acte) */
+    if (this._filesEntry !== this._entryId) this._subscribeFiles();
     if (this._costs && this._costsEntry !== this._entryId) {
       this._costs.expenses = [];
       this._costs.loaded = false;
@@ -2966,7 +3228,7 @@ class VehicleManagerCard extends HTMLElement {
         <span class="num">${badge}</span>
       </span>
       <span class="meta">
-        <span class="name">${document_.label}</span>
+        <span class="name">${document_.label}${this._clipBadge(document_.key)}</span>
         <span class="main">${dateText || STATUS_LABEL[status] || "Necompletat"}</span>
         <span class="sub">${lines.join(" · ") || "fara scadenta setata"}</span>
       </span>
@@ -3011,6 +3273,7 @@ const EDITOR_SCHEMA = [
     schema: [
       { name: "show_theme_button", selector: { boolean: {} } },
       { name: "show_costs_button", selector: { boolean: {} } },
+      { name: "show_files_button", selector: { boolean: {} } },
     ],
   },
   {
@@ -3053,6 +3316,7 @@ const EDITOR_LABELS = {
   rotate_speed: "Viteza de rotire",
   show_theme_button: "Buton Themes (culorile se aleg din card)",
   show_costs_button: "Buton Costuri (istoricul cheltuielilor)",
+  show_files_button: "Buton Dosar (poze si PDF-uri cu actele)",
   compact: "Mod compact (pentru pagina principala)",
   compact_items: "Acte afisate in modul compact",
   navigation_path: "Pagina deschisa din modul compact (ex. /lovelace/masini)",

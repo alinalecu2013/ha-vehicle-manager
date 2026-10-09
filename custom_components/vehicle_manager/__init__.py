@@ -58,6 +58,7 @@ from .costs import (
     async_setup_costs,
     get_cost_manager,
 )
+from .files import async_setup_files
 from .mileage import MileageTracker
 from .theme import async_setup_theme
 
@@ -93,6 +94,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await _async_ensure_media_dir(hass)
     await async_setup_theme(hass)
     await async_setup_costs(hass)
+    await async_setup_files(hass)
     await _async_register_frontend(hass)
 
     coordinator = VehicleCoordinator(hass, entry)
@@ -124,6 +126,8 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Sterge fisierele media si istoricul cheltuielilor vehiculului eliminat."""
     costs = await async_setup_costs(hass)
     await costs.async_remove_entry(entry.entry_id)
+    files = await async_setup_files(hass)
+    await files.async_remove_entry(entry.entry_id)
 
     media_dir = Path(hass.config.path("www", MEDIA_DIRNAME))
     options = entry.options or entry.data
