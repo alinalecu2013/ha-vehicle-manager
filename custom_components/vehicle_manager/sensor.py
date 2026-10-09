@@ -110,6 +110,9 @@ class VehicleStatusSensor(VehicleEntity, SensorEntity):
             ("image", "photo"),
             ("binary_sensor", "attention"),
             ("binary_sensor", "expired"),
+            ("sensor", "expenses_year"),
+            ("sensor", "fuel_consumption"),
+            ("device_tracker", "parking_location"),
         ]
         for doc, meta in DOCUMENTS.items():
             wanted.append(("date", date_key(doc)))
