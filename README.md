@@ -86,6 +86,7 @@ listeaza in meniul drop-down din partea de sus.
 | `show_photo_toggle` | `true` | Butonul `3D` / `Poza` din scena. |
 | `show_theme_button` | `true` | Arata butonul **Themes** din bara de sus. |
 | `show_costs_button` | `true` | Arata butonul **Costuri** din bara de sus. |
+| `show_files_button` | `true` | Arata butonul **Dosar** din bara de sus. |
 | `compact` | `false` | Mod compact pentru pagina principala (vezi mai jos). |
 | `compact_items` | `3` | Cate acte se afiseaza in modul compact (1 - 5). |
 | `navigation_path` | - | In modul compact, pagina deschisa la atingerea numelui (ex. `/lovelace/masini`). |
@@ -153,7 +154,9 @@ Butonul **Costuri** din bara de sus deschide istoricul cheltuielilor vehiculului
   combustibil, spalare, parcare, amenzi, taxe si impozit, accesorii, altele);
 - formular de adaugare: data (implicit azi), categoria, suma, kilometrajul (implicit cel
   curent) si o nota;
-- lista cheltuielilor, filtrabila pe ani, cu stergere (al doilea click confirma).
+- lista cheltuielilor, filtrabila pe ani, cu stergere (al doilea click confirma);
+- **Export CSV** pentru perioada aleasa (separator `;` si virgula zecimala, se deschide direct
+  in Excel in romana).
 
 Cheltuielile se salveaza pe server (`.storage/vehicle_manager.expenses`), sunt aceleasi pe
 toate dispozitivele si se actualizeaza live. Moneda este cea setata in
@@ -178,6 +181,35 @@ poate fi folosit in grafice si automatizari.
 
 Daca o cheltuiala (de orice categorie) are un kilometraj mai mare decat cel al
 vehiculului, kilometrajul vehiculului se actualizeaza automat.
+
+### Dosar (documente scanate)
+
+Butonul **Dosar** pastreaza poze sau PDF-uri cu actele: polita RCA, ITP-ul, talonul, cartea
+masinii etc. Pentru fiecare act (si pentru "Alte documente") poti adauga, deschide si sterge
+fisiere; in lista de acte apare o agrafa cu numarul de fisiere.
+
+- Fisierele stau in `config/vehicle_manager_documente/`, **nu** in `www`: tot ce e in `www`
+  este public (`/local/...`), iar actele contin date personale. Se deschid doar din Home
+  Assistant, prin linkuri semnate valabile un minut.
+- Sunt acceptate JPG, PNG, WebP, GIF si PDF, maximum 20 MB; tipul e verificat dupa continut.
+  Pozele mari facute cu telefonul sunt micsorate inainte de incarcare.
+- Fisierele intra in backup-urile Home Assistant; la stergerea vehiculului se sterg si ele.
+
+### Cardul Garaj
+
+Toate vehiculele pe scurt, cu tema din **Themes**: starea, cel mai urgent act, costurile
+anului, consumul si unde e parcata masina.
+
+```yaml
+type: custom:vehicle-manager-garage-card
+title: Garaj                         # optional
+navigation_path: /lovelace/masini    # optional; altfel se deschid detaliile vehiculului
+```
+
+### Limba
+
+Cardurile sunt in romana cand Home Assistant e setat pe romana si in engleza altfel
+(**Profil &rsaquo; Limba**).
 
 ### Themes
 
@@ -251,6 +283,7 @@ Daca three.js nu poate fi incarcat si vehiculul are poza, cardul comuta automat 
 | `binary_sensor` | Acte de rezolvat, Acte expirate | Pentru automatizari si notificari. |
 | `image` | Poza | Poza vehiculului. |
 | `calendar` | Scadente | Un eveniment pe toata ziua pentru fiecare act cu data de scadenta. |
+| `device_tracker` | Locatie parcare | Ultimul loc de parcare, pe harta Home Assistant. |
 | `sensor` | Cheltuieli anul curent | Suma cheltuielilor din anul curent (in moneda setata in HA), cu defalcare pe categorii in atribute. |
 | `sensor` | Cheltuieli totale | Suma tuturor cheltuielilor inregistrate. |
 | `sensor` | Consum mediu | L/100 km (kWh/100 km la electrice), din alimentari; in atribute: ultimul plin, costul pe km, km masurati. |
@@ -282,6 +315,35 @@ OBD (ex. Torque, WiCAN), aplicatia producatorului masinii, Android Auto etc.
 - Kilometrajul se poate modifica in continuare si manual. In card apare eticheta **AUTO**
   langa kilometraj cand acesta vine dintr-un senzor.
 - Pentru a reveni la kilometrajul manual, goleste campul.
+
+## Unde am parcat
+
+Cand telefonul se deconecteaza de la Bluetooth-ul masinii, pozitia GPS a telefonului devine
+locul de parcare: apare pe harta Home Assistant (entitatea **Locatie parcare**) si in card, cu
+buton de navigare. Cand telefonul se reconecteaza, masina apare "in mers".
+
+1. Aplicatia Home Assistant Companion trebuie sa aiba activi senzorii **Bluetooth connection**
+   si localizarea (device tracker).
+2. **Configurare &rsaquo; Unde am parcat** la vehicul: alege localizarea telefonului, senzorul
+   Bluetooth si scrie numele sau adresa Bluetooth a masinii (asa cum apare in atributul
+   `connected_paired_devices` al senzorului, ex. `Opel Astra` sau `AA:BB:CC:DD:EE:FF`).
+
+Fara Bluetooth, poti salva locul din automatizari cu `vehicle_manager.set_parking`
+(`source: device_tracker.telefon` sau `latitude` / `longitude`).
+
+## Asistent vocal
+
+Blueprint-ul **Vehicle Manager: asistent vocal** raspunde in Assist (scris sau vocal, si din
+aplicatia de pe telefon), cu asistentul setat pe romana:
+
+[![Importa blueprint-ul](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/alinalecu2013/ha-vehicle-manager/blob/main/blueprints/automation/vehicle_manager/asistent_vocal.yaml)
+
+- *"Cand expira ITP-ul?"*, *"Cand expira RCA la Astra?"*
+- *"Ce acte expira?"*
+- *"Cat am cheltuit anul acesta?"*, *"Cat am cheltuit pe Citroen?"*
+- *"Unde am parcat?"*
+
+Dupa import, creeaza o automatizare din blueprint (nu are nimic de configurat).
 
 ## Calendar
 
@@ -326,6 +388,8 @@ trateaza doar butoanele propriilor notificari.
 - `vehicle_manager.add_expense` — adauga o cheltuiala (categorie, suma, data, km, nota;
   pentru combustibil si `quantity` / `full_tank`).
 - `vehicle_manager.delete_expense` — sterge o cheltuiala dupa id.
+- `vehicle_manager.set_parking` — salveaza locul de parcare (din pozitia unei entitati sau
+  din coordonate).
 
 `renew_document` si `mark_service_done` accepta si campul optional `cost`: suma platita
 se inregistreaza automat in istoric, la categoria actului. Exemplu:
