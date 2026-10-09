@@ -6,7 +6,7 @@
  * model 3D rotativ in centru, acte in dreapta.
  */
 
-const CARD_VERSION = "1.8.0";
+const CARD_VERSION = "1.9.0";
 const DEFAULT_THREE = "https://esm.sh/three@0.160.0";
 
 console.info(
@@ -27,6 +27,23 @@ const STATUS_LABEL = {
   expired: "Expirat",
   unknown: "Necompletat",
 };
+
+/* Actele afisate implicit; celelalte apar doar dupa ce sunt completate. */
+const CLASSIC_DOCUMENTS = ["rca", "itp", "rovinieta", "revizie", "distributie"];
+
+/* Pentru editor: aceleasi chei ca DOCUMENTS din const.py. */
+const DOCUMENT_OPTIONS = [
+  ["rca", "RCA"],
+  ["itp", "ITP"],
+  ["rovinieta", "Rovinieta"],
+  ["casco", "CASCO"],
+  ["revizie", "Revizie"],
+  ["distributie", "Distributie"],
+  ["trusa_medicala", "Trusa medicala"],
+  ["extinctor", "Extinctor"],
+  ["impozit", "Impozit auto"],
+  ["anvelope", "Schimb anvelope"],
+];
 
 const SPEC_ROWS = [
   { key: "make", label: "Marca", icon: "mdi:car-side" },
@@ -624,6 +641,7 @@ const EXPENSE_CATEGORIES = {
   rca: ["RCA", "mdi:shield-car"],
   itp: ["ITP", "mdi:car-wrench"],
   rovinieta: ["Rovinieta", "mdi:road-variant"],
+  casco: ["CASCO", "mdi:shield-star"],
   revizie: ["Revizie", "mdi:oil"],
   distributie: ["Distributie", "mdi:cog-sync"],
   reparatii: ["Reparatii", "mdi:wrench"],
@@ -2709,12 +2727,12 @@ class VehicleManagerCard extends HTMLElement {
 
     /* --- caracteristici --- */
     el.specList.replaceChildren(
-      ...SPEC_ROWS.map((row) => this._renderSpec(row, vehicle, entities))
+      ...this._visibleSpecs().map((row) => this._renderSpec(row, vehicle, entities))
     );
 
     /* --- acte --- */
     el.docList.replaceChildren(
-      ...Object.values(documents).map((document_) =>
+      ...this._visibleDocuments(documents).map((document_) =>
         this._renderDocument(document_, entities, language)
       )
     );
@@ -2755,6 +2773,27 @@ class VehicleManagerCard extends HTMLElement {
     )}km`;
   }
 
+  /*
+   * Actele bifate in editor (config "documents"), in ordinea integrarii.
+   * Fara bife: cele 5 de baza plus orice alt act care are o data completata.
+   */
+  _visibleDocuments(documents) {
+    const all = Object.values(documents);
+    const chosen = this._config.documents;
+    if (Array.isArray(chosen) && chosen.length) {
+      return all.filter((d) => chosen.includes(d.key));
+    }
+    return all.filter((d) => CLASSIC_DOCUMENTS.includes(d.key) || d.status !== "unknown");
+  }
+
+  /* Caracteristicile bifate in editor (config "specs"); fara bife, toate. */
+  _visibleSpecs() {
+    const chosen = this._config.specs;
+    return Array.isArray(chosen) && chosen.length
+      ? SPEC_ROWS.filter((row) => chosen.includes(row.key))
+      : SPEC_ROWS;
+  }
+
   _renderUrgent(documents, entities) {
     const limit = clamp(Math.round(Number(this._config.compact_items) || 3), 1, 5);
     /*
@@ -2763,7 +2802,7 @@ class VehicleManagerCard extends HTMLElement {
      */
     const remaining = (d) =>
       d.days ?? (d.km_remaining !== null && d.km_remaining !== undefined ? d.km_remaining / 50 : Infinity);
-    const items = Object.values(documents)
+    const items = this._visibleDocuments(documents)
       .filter((d) => d.status !== "unknown")
       .sort(
         (a, b) =>
@@ -2959,6 +2998,26 @@ const EDITOR_SCHEMA = [
     ],
   },
   { name: "navigation_path", selector: { navigation: {} } },
+  {
+    name: "documents",
+    selector: {
+      select: {
+        multiple: true,
+        mode: "list",
+        options: DOCUMENT_OPTIONS.map(([value, label]) => ({ value, label })),
+      },
+    },
+  },
+  {
+    name: "specs",
+    selector: {
+      select: {
+        multiple: true,
+        mode: "list",
+        options: SPEC_ROWS.map((row) => ({ value: row.key, label: row.label })),
+      },
+    },
+  },
   { name: "three_src", selector: { text: {} } },
 ];
 
@@ -2973,6 +3032,8 @@ const EDITOR_LABELS = {
   compact: "Mod compact (pentru pagina principala)",
   compact_items: "Acte afisate in modul compact",
   navigation_path: "Pagina deschisa din modul compact (ex. /lovelace/masini)",
+  documents: "Acte afisate (nimic bifat: cele 5 de baza + actele completate)",
+  specs: "Caracteristici afisate (nimic bifat: toate)",
   three_src: "Sursa three.js",
 };
 

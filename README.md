@@ -15,7 +15,8 @@ pentru mai multe vehicule, poza per masina si un model 3D rotativ in card.
 
 ## Ce urmareste
 
-**Acte si scadente:** RCA, ITP, rovinieta, revizie, distributie.
+**Acte si scadente:** RCA, ITP, rovinieta, revizie, distributie, plus optional CASCO,
+trusa medicala, extinctor, impozit auto si schimbul sezonier de anvelope.
 Reviziile si distributia pot avea scadenta pe data, pe kilometraj, sau pe amandoua.
 
 **Caracteristici:** marca, model, an fabricatie, kilometraj, culoare, capacitate motor,
@@ -88,6 +89,8 @@ listeaza in meniul drop-down din partea de sus.
 | `compact` | `false` | Mod compact pentru pagina principala (vezi mai jos). |
 | `compact_items` | `3` | Cate acte se afiseaza in modul compact (1 - 5). |
 | `navigation_path` | - | In modul compact, pagina deschisa la atingerea numelui (ex. `/lovelace/masini`). |
+| `documents` | automat | Lista actelor afisate (vezi mai jos). |
+| `specs` | toate | Lista caracteristicilor afisate: `make`, `model`, `year`, `mileage`, `color`, `engine_capacity`, `fuel_type`, `license_plate`. |
 | `accent` | `#00e5ff` | Culoarea accent (ignorata dupa ce salvezi o tema din **Themes**). |
 | `accent2` | `#ff2bd6` | Culoarea accent secundara (idem). |
 | `three_src` | `https://esm.sh/three@0.160.0` | Sursa bibliotecii three.js. |
@@ -102,6 +105,22 @@ accent: "#7cf5c0"
 accent2: "#ffa63d"
 rotate_speed: 0.25
 ```
+
+### Ce acte si caracteristici apar
+
+In editorul vizual al cardului bifezi ce acte si ce caracteristici vrei sa vezi. Fara
+nicio bifa, cardul arata cele 5 acte de baza (RCA, ITP, rovinieta, revizie, distributie)
+plus orice alt act care are o data completata, si toate caracteristicile. Bifele se aplica
+si in modul compact.
+
+```yaml
+type: custom:vehicle-manager-card
+documents: [rca, itp, rovinieta, casco, impozit]
+specs: [make, model, mileage, license_plate]
+```
+
+Cheile actelor: `rca`, `itp`, `rovinieta`, `casco`, `revizie`, `distributie`,
+`trusa_medicala`, `extinctor`, `impozit`, `anvelope`.
 
 ### Mod compact
 
@@ -225,7 +244,7 @@ Daca three.js nu poate fi incarcat si vehiculul are poza, cardul comuta automat 
 | Platforma | Entitate | Rol |
 | --- | --- | --- |
 | `sensor` | Stare acte | Starea cea mai grava; toate datele pentru card in atribute. |
-| `sensor` | RCA, ITP, Rovinieta, Revizie, Distributie | Zile ramase (negativ = expirat); atributul `document_key` e cheia actului pentru servicii. |
+| `sensor` | RCA, ITP, Rovinieta, CASCO, Revizie, Distributie, Trusa medicala, Extinctor, Impozit auto, Schimb anvelope | Zile ramase (negativ = expirat); atributul `document_key` e cheia actului pentru servicii. |
 | `sensor` | Marca, Model, An, Culoare, Capacitate, Combustibil, Nr. inmatriculare, VIN | Caracteristici (diagnostic). |
 | `number` | Kilometraj, Revizie la km, Distributie la km | Editabile din interfata. |
 | `date` | Expirare RCA / ITP / rovinieta, Scadenta revizie / distributie | Editabile din interfata. |
@@ -235,6 +254,13 @@ Daca three.js nu poate fi incarcat si vehiculul are poza, cardul comuta automat 
 | `sensor` | Cheltuieli anul curent | Suma cheltuielilor din anul curent (in moneda setata in HA), cu defalcare pe categorii in atribute. |
 | `sensor` | Cheltuieli totale | Suma tuturor cheltuielilor inregistrate. |
 | `sensor` | Consum mediu | L/100 km (kWh/100 km la electrice), din alimentari; in atribute: ultimul plin, costul pe km, km masurati. |
+
+Actele optionale (CASCO, trusa medicala, extinctor, impozit auto, schimb anvelope) se
+completeaza din **Configurare &rsaquo; Acte si scadente**. Cat timp nu au o data, nu
+influenteaza starea vehiculului si nu apar in calendar sau in notificari. Schimbul de
+anvelope e un memento sezonier: butonul din notificare il muta cu 6 luni. Costul unei
+reinnoiri (campul `cost`) ajunge la categoria potrivita: CASCO, Accesorii (trusa,
+extinctor), Taxe (impozit) sau Anvelope.
 
 Pragurile de avertizare (implicit 30 de zile si 1000 km) se configureaza per vehicul din
 **Configurare &rsaquo; Praguri de avertizare**.

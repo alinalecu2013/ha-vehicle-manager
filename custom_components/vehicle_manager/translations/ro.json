@@ -35,7 +35,12 @@
           "revizie_date": "Revizie scadenta la data",
           "revizie_km": "Revizie scadenta la km",
           "distributie_date": "Distributie scadenta la data",
-          "distributie_km": "Distributie scadenta la km"
+          "distributie_km": "Distributie scadenta la km",
+          "casco_date": "CASCO expira la",
+          "trusa_medicala_date": "Trusa medicala expira la",
+          "extinctor_date": "Extinctorul trebuie verificat la",
+          "impozit_date": "Impozitul auto e scadent la",
+          "anvelope_date": "Urmatorul schimb de anvelope (iarna/vara) la"
         },
         "data_description": {
           "revizie_km": "Kilometrajul la care devine scadenta revizia (valoare absoluta a odometrului).",
@@ -94,7 +99,12 @@
           "revizie_date": "Revizie scadenta la data",
           "revizie_km": "Revizie scadenta la km",
           "distributie_date": "Distributie scadenta la data",
-          "distributie_km": "Distributie scadenta la km"
+          "distributie_km": "Distributie scadenta la km",
+          "casco_date": "CASCO expira la",
+          "trusa_medicala_date": "Trusa medicala expira la",
+          "extinctor_date": "Extinctorul trebuie verificat la",
+          "impozit_date": "Impozitul auto e scadent la",
+          "anvelope_date": "Urmatorul schimb de anvelope (iarna/vara) la"
         }
       },
       "media": {
@@ -143,7 +153,12 @@
         "itp": "ITP",
         "rovinieta": "Rovinieta",
         "revizie": "Revizie",
-        "distributie": "Distributie"
+        "distributie": "Distributie",
+        "casco": "CASCO",
+        "trusa_medicala": "Trusa medicala",
+        "extinctor": "Extinctor",
+        "impozit": "Impozit auto",
+        "anvelope": "Schimb anvelope"
       }
     },
     "expense_category": {
@@ -151,6 +166,7 @@
         "rca": "RCA",
         "itp": "ITP",
         "rovinieta": "Rovinieta",
+        "casco": "CASCO",
         "revizie": "Revizie",
         "distributie": "Distributie",
         "reparatii": "Reparatii",
@@ -173,6 +189,11 @@
       "rovinieta_days": { "name": "Rovinieta" },
       "revizie_days": { "name": "Revizie" },
       "distributie_days": { "name": "Distributie" },
+      "casco_days": { "name": "CASCO" },
+      "trusa_medicala_days": { "name": "Trusa medicala" },
+      "extinctor_days": { "name": "Extinctor" },
+      "impozit_days": { "name": "Impozit auto" },
+      "anvelope_days": { "name": "Schimb anvelope" },
       "make": { "name": "Marca" },
       "model": { "name": "Model" },
       "year": { "name": "An fabricatie" },
@@ -199,7 +220,12 @@
       "itp_date": { "name": "Expirare ITP" },
       "rovinieta_date": { "name": "Expirare rovinieta" },
       "revizie_date": { "name": "Scadenta revizie" },
-      "distributie_date": { "name": "Scadenta distributie" }
+      "distributie_date": { "name": "Scadenta distributie" },
+      "casco_date": { "name": "Expirare CASCO" },
+      "trusa_medicala_date": { "name": "Expirare trusa medicala" },
+      "extinctor_date": { "name": "Expirare extinctor" },
+      "impozit_date": { "name": "Scadenta impozit auto" },
+      "anvelope_date": { "name": "Data schimb anvelope" }
     },
     "image": {
       "photo": { "name": "Poza" }

@@ -1,11 +1,12 @@
 blueprint:
   name: "Vehicle Manager: notificari pentru acte"
   description: >
-    Trimite pe telefon o notificare cand un act (RCA, ITP, rovinieta, revizie,
-    distributie) se apropie de scadenta. Notificarea are un buton care
-    reinnoieste actul direct din telefon: RCA, ITP si rovinieta se prelungesc cu
-    numarul de luni ales, iar revizia si distributia se marcheaza ca facute
-    (urmatoarea scadenta se calculeaza automat).
+    Trimite pe telefon o notificare cand un act (RCA, ITP, rovinieta, CASCO,
+    revizie, distributie, trusa medicala, extinctor, impozit auto, schimb de
+    anvelope) se apropie de scadenta. Notificarea are un buton care reinnoieste
+    actul direct din telefon: actele se prelungesc cu numarul de luni ales,
+    schimbul de anvelope cu 6 luni, iar revizia si distributia se marcheaza ca
+    facute (urmatoarea scadenta se calculeaza automat).
   domain: automation
   source_url: https://github.com/alinalecu2013/ha-vehicle-manager/blob/main/blueprints/automation/vehicle_manager/notificare_acte.yaml
   input:
@@ -57,7 +58,7 @@ blueprint:
       selector:
         time:
     renew_months:
-      name: Prelungire RCA / ITP / rovinieta
+      name: Prelungire acte (RCA, ITP, rovinieta, CASCO...)
       description: Cu cate luni se prelungeste actul cand apesi butonul din notificare.
       default: 12
       selector:
@@ -195,8 +196,9 @@ actions:
                     actions:
                       - action: "{{ action_prefix ~ repeat.item.entity }}"
                         title: >
-                          {{ 'Am facut-o' if repeat.item.key in ['revizie', 'distributie']
-                             else 'Am reinnoit (+' ~ renew_months ~ ' luni)' }}
+                          {% if repeat.item.key in ['revizie', 'distributie'] %}Am facut-o
+                          {% elif repeat.item.key == 'anvelope' %}Am schimbat (+6 luni)
+                          {% else %}Am reinnoit (+{{ renew_months }} luni){% endif %}
 
       # ------------------------------------------------- butonul din notificare
       - conditions:
@@ -230,7 +232,8 @@ actions:
                   entity_id: "{{ entity }}"
                 data:
                   document: "{{ key }}"
-                  months: "{{ renew_months | int }}"
+                  # anvelopele se schimba sezonier, deci urmatorul schimb e peste 6 luni
+                  months: "{{ 6 if key == 'anvelope' else renew_months | int }}"
           - device_id: !input notify_device
             domain: mobile_app
             type: notify

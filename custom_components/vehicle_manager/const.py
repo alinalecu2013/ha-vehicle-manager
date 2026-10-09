@@ -6,7 +6,7 @@ from datetime import timedelta
 from typing import Final
 
 DOMAIN: Final = "vehicle_manager"
-VERSION: Final = "1.8.0"
+VERSION: Final = "1.9.0"
 
 PLATFORMS: Final = ["sensor", "binary_sensor", "number", "date", "image", "calendar"]
 
@@ -51,6 +51,11 @@ DOC_ITP: Final = "itp"
 DOC_ROVINIETA: Final = "rovinieta"
 DOC_REVIZIE: Final = "revizie"
 DOC_DISTRIBUTIE: Final = "distributie"
+DOC_CASCO: Final = "casco"
+DOC_TRUSA: Final = "trusa_medicala"
+DOC_EXTINCTOR: Final = "extinctor"
+DOC_IMPOZIT: Final = "impozit"
+DOC_ANVELOPE: Final = "anvelope"
 
 DOCUMENTS: Final[dict[str, dict]] = {
     DOC_RCA: {
@@ -82,6 +87,37 @@ DOCUMENTS: Final[dict[str, dict]] = {
         "icon": "mdi:cog-sync",
         "uses_km": True,
         "horizon": 1825,
+    },
+    # Acte optionale: apar in card doar dupa ce au o data (sau daca sunt bifate).
+    DOC_CASCO: {
+        "label": "CASCO",
+        "icon": "mdi:shield-star",
+        "uses_km": False,
+        "horizon": 365,
+    },
+    DOC_TRUSA: {
+        "label": "Trusa medicala",
+        "icon": "mdi:medical-bag",
+        "uses_km": False,
+        "horizon": 1095,
+    },
+    DOC_EXTINCTOR: {
+        "label": "Extinctor",
+        "icon": "mdi:fire-extinguisher",
+        "uses_km": False,
+        "horizon": 365,
+    },
+    DOC_IMPOZIT: {
+        "label": "Impozit auto",
+        "icon": "mdi:bank",
+        "uses_km": False,
+        "horizon": 365,
+    },
+    DOC_ANVELOPE: {
+        "label": "Schimb anvelope",
+        "icon": "mdi:tire",
+        "uses_km": False,
+        "horizon": 182,
     },
 }
 
@@ -212,6 +248,7 @@ EXPENSE_CATEGORIES: Final[dict[str, tuple[str, str]]] = {
     "rca": ("RCA", "mdi:shield-car"),
     "itp": ("ITP", "mdi:car-wrench"),
     "rovinieta": ("Rovinieta", "mdi:road-variant"),
+    "casco": ("CASCO", "mdi:shield-star"),
     "revizie": ("Revizie", "mdi:oil"),
     "distributie": ("Distributie", "mdi:cog-sync"),
     "reparatii": ("Reparatii", "mdi:wrench"),
@@ -223,4 +260,11 @@ EXPENSE_CATEGORIES: Final[dict[str, tuple[str, str]]] = {
     "taxe": ("Taxe si impozit", "mdi:bank"),
     "accesorii": ("Accesorii", "mdi:car-seat"),
     "altele": ("Altele", "mdi:dots-horizontal"),
+}
+
+# Categoria de cost pentru reinnoirea unui act, cand nu are o categorie proprie.
+DOC_EXPENSE_CATEGORY: Final[dict[str, str]] = {
+    "trusa_medicala": "accesorii",
+    "extinctor": "accesorii",
+    "impozit": "taxe",
 }

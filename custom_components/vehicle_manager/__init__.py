@@ -34,6 +34,7 @@ from .const import (
     HACS_CARD_REPO,
     CONF_MEDIA_ID,
     CONF_MILEAGE,
+    DOC_EXPENSE_CATEGORY,
     DOC_REVIZIE,
     DOCUMENTS,
     DOMAIN,
@@ -376,13 +377,16 @@ def _async_register_services(hass: HomeAssistant) -> None:
         cost: float | None,
         mileage: int | None = None,
     ) -> None:
-        """Inregistreaza costul reinnoirii, daca a fost dat (categoria = actul)."""
+        """Inregistreaza costul reinnoirii, daca a fost dat (categoria actului)."""
         if cost is None:
             return
         if mileage is None:
             mileage = as_int(coordinator.options.get(CONF_MILEAGE))
         await get_cost_manager(hass).async_add(
-            coordinator.entry.entry_id, category=doc, amount=cost, mileage=mileage
+            coordinator.entry.entry_id,
+            category=DOC_EXPENSE_CATEGORY.get(doc, doc),
+            amount=cost,
+            mileage=mileage,
         )
 
     async def _add_expense(call: ServiceCall) -> None:

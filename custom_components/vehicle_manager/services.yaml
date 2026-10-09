@@ -30,6 +30,11 @@ set_document:
             - rovinieta
             - revizie
             - distributie
+            - casco
+            - trusa_medicala
+            - extinctor
+            - impozit
+            - anvelope
     date:
       selector:
         date:
@@ -58,6 +63,11 @@ renew_document:
             - rovinieta
             - revizie
             - distributie
+            - casco
+            - trusa_medicala
+            - extinctor
+            - impozit
+            - anvelope
     months:
       default: 12
       selector:
@@ -144,6 +154,7 @@ add_expense:
             - rca
             - itp
             - rovinieta
+            - casco
             - revizie
             - distributie
             - reparatii

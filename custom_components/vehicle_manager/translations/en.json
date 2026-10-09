@@ -35,7 +35,12 @@
           "revizie_date": "Service due on",
           "revizie_km": "Service due at km",
           "distributie_date": "Timing belt due on",
-          "distributie_km": "Timing belt due at km"
+          "distributie_km": "Timing belt due at km",
+          "casco_date": "Comprehensive insurance (CASCO) expires on",
+          "trusa_medicala_date": "First aid kit expires on",
+          "extinctor_date": "Fire extinguisher check due on",
+          "impozit_date": "Vehicle tax due on",
+          "anvelope_date": "Next tyre change (winter/summer) on"
         },
         "data_description": {
           "revizie_km": "Absolute odometer reading at which the service becomes due.",
@@ -94,7 +99,12 @@
           "revizie_date": "Service due on",
           "revizie_km": "Service due at km",
           "distributie_date": "Timing belt due on",
-          "distributie_km": "Timing belt due at km"
+          "distributie_km": "Timing belt due at km",
+          "casco_date": "Comprehensive insurance (CASCO) expires on",
+          "trusa_medicala_date": "First aid kit expires on",
+          "extinctor_date": "Fire extinguisher check due on",
+          "impozit_date": "Vehicle tax due on",
+          "anvelope_date": "Next tyre change (winter/summer) on"
         }
       },
       "media": {
@@ -143,7 +153,12 @@
         "itp": "Inspection (ITP)",
         "rovinieta": "Road tax",
         "revizie": "Service",
-        "distributie": "Timing belt"
+        "distributie": "Timing belt",
+        "casco": "Comprehensive insurance (CASCO)",
+        "trusa_medicala": "First aid kit",
+        "extinctor": "Fire extinguisher",
+        "impozit": "Vehicle tax",
+        "anvelope": "Tyre change"
       }
     },
     "expense_category": {
@@ -151,6 +166,7 @@
         "rca": "Insurance (RCA)",
         "itp": "Inspection (ITP)",
         "rovinieta": "Road tax",
+        "casco": "Comprehensive insurance (CASCO)",
         "revizie": "Service",
         "distributie": "Timing belt",
         "reparatii": "Repairs",
@@ -173,6 +189,11 @@
       "rovinieta_days": { "name": "Road tax" },
       "revizie_days": { "name": "Service" },
       "distributie_days": { "name": "Timing belt" },
+      "casco_days": { "name": "Comprehensive insurance (CASCO)" },
+      "trusa_medicala_days": { "name": "First aid kit" },
+      "extinctor_days": { "name": "Fire extinguisher" },
+      "impozit_days": { "name": "Vehicle tax" },
+      "anvelope_days": { "name": "Tyre change" },
       "make": { "name": "Make" },
       "model": { "name": "Model" },
       "year": { "name": "Year of manufacture" },
@@ -199,7 +220,12 @@
       "itp_date": { "name": "Inspection expiry" },
       "rovinieta_date": { "name": "Road tax expiry" },
       "revizie_date": { "name": "Service due date" },
-      "distributie_date": { "name": "Timing belt due date" }
+      "distributie_date": { "name": "Timing belt due date" },
+      "casco_date": { "name": "CASCO expiry" },
+      "trusa_medicala_date": { "name": "First aid kit expiry" },
+      "extinctor_date": { "name": "Fire extinguisher expiry" },
+      "impozit_date": { "name": "Vehicle tax due date" },
+      "anvelope_date": { "name": "Tyre change date" }
     },
     "image": {
       "photo": { "name": "Photo" }
