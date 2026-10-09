@@ -199,6 +199,17 @@ configurata a vehiculului (`Rosu`, `Albastru metalizat`, `#1f5fbf`... sunt toate
 Daca incarci un `.glb` sau `.gltf` in pasul **Poza si model 3D**, acela e randat in locul ei,
 scalat automat.
 
+**Modele mari.** Pe telefon, un model peste ~5 MB se incarca greu. Un model exportat din
+SketchUp/SimLab se poate micsora fara diferente vizibile cu
+[glTF-Transform](https://gltf-transform.dev) (necesita Node.js):
+
+```bash
+npx @gltf-transform/cli optimize masina.glb masina_optimizat.glb   --compress quantize --texture-compress false   --simplify-ratio 0.35 --simplify-error 0.001
+```
+
+`quantize` e citit direct de three.js (fara decodoare suplimentare); nu folosi `draco` sau
+`meshopt`, cardul nu le incarca. Exemplu: un Citroen C3 a scazut de la 20 MB la 4 MB.
+
 three.js se incarca de pe CDN la prima afisare. Pentru instalari fara internet, pune
 `three.module.js` in `config/www/` si seteaza:
 
