@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 from collections import defaultdict
+import csv
 from datetime import date
+import io
 import secrets
 from typing import Any
 
+from aiohttp import web
 import voluptuous as vol
 
 from homeassistant.components import websocket_api
+from homeassistant.components.http import HomeAssistantView
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.dispatcher import (
@@ -253,7 +257,80 @@ async def async_setup_costs(hass: HomeAssistant) -> CostManager:
     websocket_api.async_register_command(hass, ws_subscribe_expenses)
     websocket_api.async_register_command(hass, ws_add_expense)
     websocket_api.async_register_command(hass, ws_delete_expense)
+    hass.http.register_view(ExpensesCsvView(hass))
     return manager
+
+
+def _ro_number(value: float | int | None, decimals: int = 2) -> str:
+    """Numar cu virgula zecimala, cum il asteapta Excel in romana."""
+    if value is None:
+        return ""
+    return f"{value:.{decimals}f}".replace(".", ",")
+
+
+def expenses_csv(
+    expenses: list[dict[str, Any]], currency: str, period: str
+) -> str:
+    """CSV cu separator ';' (Excel in romana), cele mai vechi primele."""
+    rows = [e for e in expenses if period == "all" or e["date"].startswith(f"{period}-")]
+    rows.sort(key=lambda e: (e["date"], e["id"]))
+    out = io.StringIO()
+    writer = csv.writer(out, delimiter=";", lineterminator="\r\n")
+    writer.writerow(
+        ["Data", "Categorie", "Suma", "Moneda", "Kilometraj", "Cantitate", "Plin complet", "Nota"]
+    )
+    for e in rows:
+        writer.writerow(
+            [
+                e["date"],
+                EXPENSE_CATEGORIES.get(e["category"], (e["category"],))[0],
+                _ro_number(e["amount"]),
+                currency,
+                e["mileage"] if e.get("mileage") is not None else "",
+                _ro_number(e.get("quantity")),
+                {True: "da", False: "nu"}.get(e.get("full_tank"), "") if e.get("quantity") else "",
+                e.get("note", ""),
+            ]
+        )
+    writer.writerow([])
+    writer.writerow(["Total", "", _ro_number(sum(e["amount"] for e in rows)), currency])
+    # BOM: Excel recunoaste astfel UTF-8 (diacriticele din note)
+    return "\ufeff" + out.getvalue()
+
+
+class ExpensesCsvView(HomeAssistantView):
+    """Exportul cheltuielilor unui vehicul. Cardul il deschide printr-un link semnat."""
+
+    url = "/api/vehicle_manager/expenses/{entry_id}/{period}"
+    name = "api:vehicle_manager:expenses_csv"
+    requires_auth = True
+
+    def __init__(self, hass: HomeAssistant) -> None:
+        self.hass = hass
+
+    async def get(self, request: web.Request, entry_id: str, period: str) -> web.Response:
+        if not _known_entry(self.hass, entry_id):
+            return self.json_message("Vehicul necunoscut", 404)
+        period = period.removesuffix(".csv")
+        if period != "all" and not (len(period) == 4 and period.isdigit()):
+            return self.json_message("Perioada invalida", 400)
+
+        entry = self.hass.config_entries.async_get_entry(entry_id)
+        name = (entry.title if entry else "vehicul").replace(" ", "_")
+        body = expenses_csv(
+            get_cost_manager(self.hass).expenses(entry_id),
+            self.hass.config.currency,
+            period,
+        )
+        suffix = "toate" if period == "all" else period
+        return web.Response(
+            body=body.encode("utf-8"),
+            content_type="text/csv",
+            charset="utf-8",
+            headers={
+                "Content-Disposition": f'attachment; filename="cheltuieli_{name}_{suffix}.csv"'
+            },
+        )
 
 
 def _known_entry(hass: HomeAssistant, entry_id: str) -> bool:

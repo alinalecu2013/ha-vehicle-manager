@@ -1467,6 +1467,7 @@ ha-card::before {
 .btn:disabled { opacity: .5; cursor: progress; }
 
 /* ---- panoul Costuri ---- */
+.btn.c-export { padding: 7px 10px; font-size: 10px; }
 .c-year {
   font: inherit; font-size: 12px; padding: 5px 8px;
   color: var(--vm-text); background: var(--vm-bg);
@@ -2012,6 +2013,7 @@ class VehicleManagerCard extends HTMLElement {
       <div class="th-head">
         <h2>Costuri</h2>
         <select class="c-year" aria-label="Perioada"></select>
+        <button class="btn c-export" type="button" title="Descarca perioada aleasa ca fisier CSV (Excel)">Export CSV</button>
         <span class="th-status c-status">Se incarca...</span>
       </div>
       <div class="c-tiles"></div>
@@ -2053,6 +2055,8 @@ class VehicleManagerCard extends HTMLElement {
       event.preventDefault();
       this._addExpense(form);
     });
+
+    root.querySelector(".c-export").addEventListener("click", () => this._exportCosts());
 
     root.querySelector(".c-year").addEventListener("change", (event) => {
       this._costs.year = event.target.value;
@@ -2100,6 +2104,26 @@ class VehicleManagerCard extends HTMLElement {
       this._setCostsStatus(`Cheltuiala nu a putut fi salvata: ${err?.message || err?.code || err}`);
     } finally {
       submit.disabled = false;
+    }
+  }
+
+  /*
+   * Fisierul CSV vine de la server; un link semnat (valabil un minut) il face
+   * descarcabil si din aplicatia mobila, fara antetul de autentificare.
+   */
+  async _exportCosts() {
+    if (!this._costsEntry) return;
+    const period = this._costs?.year || "all";
+    try {
+      const signed = await this._hass.callWS({
+        type: "auth/sign_path",
+        path: `/api/vehicle_manager/expenses/${this._costsEntry}/${period}.csv`,
+        expires: 60,
+      });
+      const url = this._hass.hassUrl ? this._hass.hassUrl(signed.path) : signed.path;
+      window.open(url, "_blank");
+    } catch (err) {
+      this._setCostsStatus(`Exportul nu a reusit: ${err?.message || err?.code || err}`);
     }
   }
 
