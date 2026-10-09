@@ -6,7 +6,7 @@
  * model 3D rotativ in centru, acte in dreapta.
  */
 
-const CARD_VERSION = "2.3.0";
+const CARD_VERSION = "2.4.0";
 /*
  * three.js r160 e inclus in integrare (www/vendor), nu se mai descarca de pe un CDN:
  * codul ruleaza in pagina Home Assistant, cu sesiunea utilizatorului.
@@ -49,6 +49,7 @@ function t(text, vars) {
 }
 
 const EN = {
+  "Dashboardul deschis la atingerea unei mașini (gol = cel numit „AUTO Check”)": "Dashboard opened when tapping a car (empty = the one named “AUTO Check”)",
   "Doar administratorii pot vedea dosarul acestui vehicul.": "Only administrators can see this vehicle's folder.",
   "Poți deschide documentele; doar administratorii le pot adăuga sau șterge.": "You can open the documents; only administrators can add or delete them.",
   "Doar administratorii pot salva tema.": "Only administrators can save the theme.",
@@ -339,6 +340,31 @@ function shortRemaining(document_) {
     return km < 0 ? t("depășit {km} km", { km: formatNumber(Math.abs(km)) }) : `${formatNumber(km)} km`;
   }
   return "—";
+}
+
+/* Parametrul din adresa prin care cardul Garaj alege masina in cardul principal. */
+const VEHICLE_URL_PARAM = "vehicle";
+
+/* Dashboardurile Lovelace din bara laterala: [url_path, titlu]. */
+function lovelaceDashboards(hass) {
+  return Object.values(hass?.panels || {})
+    .filter((panel) => panel.component_name === "lovelace" && panel.url_path)
+    .map((panel) => [panel.url_path, panel.title || panel.url_path]);
+}
+
+/* Adresa pe care o deschide cardul Garaj pentru o masina. */
+function garageTarget(config, hass, entityId) {
+  let path = config.navigation_path;
+  if (!path && config.dashboard) path = `/${config.dashboard}`;
+  if (!path) {
+    /* implicit: dashboardul numit "AUTO Check", daca exista */
+    const match = lovelaceDashboards(hass).find(([, title]) => /auto\s*check/i.test(title));
+    if (match) path = `/${match[0]}`;
+  }
+  if (!path) return null;
+  const url = new URL(path, location.origin);
+  url.searchParams.set(VEHICLE_URL_PARAM, entityId);
+  return url.pathname + url.search + url.hash;
 }
 
 /* "acum 5 min", "acum 3 h", "acum 2 zile" */
@@ -2268,6 +2294,10 @@ class VehicleManagerCard extends HTMLElement {
   }
 
   connectedCallback() {
+    /* navigarea din cardul Garaj schimba adresa fara reincarcare */
+    this._onLocation = () => this._update();
+    window.addEventListener("location-changed", this._onLocation);
+    window.addEventListener("popstate", this._onLocation);
     if (this._hass && !this._built) this._build();
     if (this._hass) this._subscribeTheme();
     /* Abia acum se pot citi culorile calculate (ex. tema Home Assistant). */
@@ -2275,6 +2305,8 @@ class VehicleManagerCard extends HTMLElement {
   }
 
   disconnectedCallback() {
+    window.removeEventListener("location-changed", this._onLocation);
+    window.removeEventListener("popstate", this._onLocation);
     this._viewer?.dispose();
     this._viewer = null;
     this._built = false;
@@ -3562,6 +3594,20 @@ class VehicleManagerCard extends HTMLElement {
 
     /* selectie valida */
     const ids = vehicles.map((v) => v.id);
+
+    /*
+     * Masina aleasa in cardul Garaj vine in adresa (?vehicle=...). O aplicam o singura
+     * data pe valoare, ca dropdown-ul sa poata schimba apoi masina.
+     */
+    const fromUrl = new URLSearchParams(location.search).get(VEHICLE_URL_PARAM);
+    if (fromUrl !== this._urlVehicle) {
+      this._urlVehicle = fromUrl;
+      if (fromUrl && ids.includes(fromUrl) && fromUrl !== this._selected) {
+        this._selected = fromUrl;
+        this._storeSelection(fromUrl);
+        this._signature = null;
+      }
+    }
     if (!this._selected || !ids.includes(this._selected)) {
       const stored = this._readStoredSelection();
       this._selected =
@@ -4316,7 +4362,8 @@ class VehicleManagerGarageCard extends HTMLElement {
     }
 
     row.addEventListener("click", () => {
-      if (this._config.navigation_path) navigate(this._config.navigation_path);
+      const target = garageTarget(this._config, this._hass, state.entity_id);
+      if (target) navigate(target);
       else moreInfo(this, state.entity_id);
     });
     return row;
@@ -4334,8 +4381,11 @@ class VehicleManagerGarageCardEditor extends HTMLElement {
   }
 
   set hass(hass) {
+    const first = !this._hass;
     this._hass = hass;
     if (this._form) this._form.hass = hass;
+    /* lista de dashboarduri vine din hass, deci schema se reface cand il primim */
+    if (first && this._form) this._render();
   }
 
   _render() {
@@ -4343,6 +4393,7 @@ class VehicleManagerGarageCardEditor extends HTMLElement {
       this._form = document.createElement("ha-form");
       const labels = {
         title: t("Titlu"),
+        dashboard: t("Dashboardul deschis la atingerea unei mașini (gol = cel numit „AUTO Check”)"),
         navigation_path: t("Pagina deschisă la atingerea unui vehicul (gol = detaliile vehiculului)"),
       };
       this._form.computeLabel = (schema) => labels[schema.name] || schema.name;
@@ -4354,6 +4405,15 @@ class VehicleManagerGarageCardEditor extends HTMLElement {
     }
     this._form.schema = [
       { name: "title", selector: { text: {} } },
+      {
+        name: "dashboard",
+        selector: {
+          select: {
+            mode: "dropdown",
+            options: lovelaceDashboards(this._hass).map(([value, label]) => ({ value, label })),
+          },
+        },
+      },
       { name: "navigation_path", selector: { navigation: {} } },
     ];
     this._form.data = this._config;

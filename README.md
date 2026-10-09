@@ -203,9 +203,15 @@ anului, consumul si unde e parcata masina.
 
 ```yaml
 type: custom:vehicle-manager-garage-card
-title: Garaj                         # optional
-navigation_path: /lovelace/masini    # optional; altfel se deschid detaliile vehiculului
+title: Garaj                  # optional
+dashboard: auto-check         # optional: dashboardul deschis la atingerea unei masini
+navigation_path: /auto-check/masini  # optional: o pagina anume (are prioritate)
 ```
+
+Atingerea unei masini deschide dashboardul ales si selecteaza **direct masina atinsa** in
+cardul principal de acolo (adresa primeste `?vehicle=sensor.<masina>_stare_acte`). Fara nicio
+setare, cardul Garaj cauta singur un dashboard numit **AUTO Check**; daca nu exista, se deschid
+detaliile vehiculului. In editorul cardului, dashboardul se alege dintr-o lista.
 
 ### Limba
 
