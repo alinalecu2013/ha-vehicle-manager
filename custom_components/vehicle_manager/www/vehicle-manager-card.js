@@ -57,6 +57,21 @@ const SPEC_ROWS = [
   { key: "parking", label: "Parcare", icon: "mdi:car-brake-parking" },
 ];
 
+/* "12 zile", "expirat de 3 z", "depasit 1.400 km" */
+function shortRemaining(document_) {
+  const { days, km_remaining: km } = document_;
+  if (days !== null && days !== undefined) {
+    if (days < 0) return `expirat de ${Math.abs(days)} z`;
+    if (days === 0) return "azi";
+    if (days === 1) return "maine";
+    return `${days} zile`;
+  }
+  if (km !== null && km !== undefined) {
+    return km < 0 ? `depasit ${formatNumber(Math.abs(km))} km` : `${formatNumber(km)} km`;
+  }
+  return "—";
+}
+
 /* "acum 5 min", "acum 3 h", "acum 2 zile" */
 function timeAgo(iso) {
   const then = new Date(iso).getTime();
@@ -3149,17 +3164,7 @@ class VehicleManagerCard extends HTMLElement {
   }
 
   _shortRemaining(document_) {
-    const { days, km_remaining: km } = document_;
-    if (days !== null && days !== undefined) {
-      if (days < 0) return `expirat de ${Math.abs(days)} z`;
-      if (days === 0) return "azi";
-      if (days === 1) return "maine";
-      return `${days} zile`;
-    }
-    if (km !== null && km !== undefined) {
-      return km < 0 ? `depasit ${formatNumber(Math.abs(km))} km` : `${formatNumber(km)} km`;
-    }
-    return "—";
+    return shortRemaining(document_);
   }
 
   _renderParking(row, parking) {
@@ -3416,6 +3421,296 @@ if (!window.customCards.some((card) => card.type === "vehicle-manager-card")) wi
   name: "Vehicle Manager Card",
   description:
     "Card futurist pentru vehicule: model 3D rotativ, caracteristici si acte (RCA, ITP, rovinieta, revizie, distributie).",
+  preview: true,
+  documentationURL: "https://github.com/alinalecu2013/ha-vehicle-manager",
+});
+
+/* ------------------------------------------------------------------ */
+/* Cardul Garaj: toate vehiculele pe scurt                             */
+/* ------------------------------------------------------------------ */
+
+const GARAGE_STYLES = `
+:host { display: block; }
+ha-card {
+  display: block; position: relative; overflow: hidden;
+  padding: calc(14px * var(--vm-sp, 1)) calc(16px * var(--vm-sp, 1));
+  color: var(--vm-text, var(--primary-text-color));
+  font-family: var(--vm-font, inherit);
+  border: 1px solid var(--vm-line, var(--divider-color));
+  border-radius: calc(12px * var(--vm-r, 1));
+  background:
+    radial-gradient(900px 300px at 50% -20%, color-mix(in srgb, var(--vm-accent, #00e5ff) var(--vm-glow-1, 16%), transparent), transparent 70%),
+    var(--vm-bg, var(--card-background-color));
+}
+h2 {
+  margin: 0 0 12px; display: flex; align-items: center; gap: 10px;
+  font: 600 calc(11px * var(--vm-fs, 1))/1 var(--vm-mono, monospace);
+  letter-spacing: .2em; text-transform: uppercase; color: var(--vm-accent, var(--primary-color));
+}
+h2::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, var(--vm-accent, var(--primary-color)), transparent); opacity: .5; }
+.list { display: flex; flex-direction: column; gap: calc(8px * var(--vm-sp, 1)); }
+.row {
+  /* coloane proportionale: aceleasi pe toate randurile, deci aliniate */
+  display: grid; grid-template-columns: 12px minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1.5fr);
+  gap: 12px; align-items: center; width: 100%; text-align: left; cursor: pointer;
+  padding: calc(10px * var(--vm-sp, 1)) 12px; font: inherit; color: inherit;
+  border-radius: calc(11px * var(--vm-r, 1));
+  background: color-mix(in srgb, var(--vm-panel-c, #121822) var(--vm-panel-p, 68%), transparent);
+  border: 1px solid color-mix(in srgb, var(--vm-line-c, #82aac8) 22%, transparent);
+}
+.row:hover { border-color: var(--vm-accent, var(--primary-color)); }
+.led { width: 10px; height: 10px; border-radius: 50%; background: var(--vm-dim, var(--secondary-text-color)); }
+.led[data-status="ok"] { background: var(--vm-ok, #22d38a); box-shadow: 0 0 calc(10px * var(--vm-glow, 1)) var(--vm-ok, #22d38a); }
+.led[data-status="warning"] { background: var(--vm-warn, #ffb020); box-shadow: 0 0 calc(10px * var(--vm-glow, 1)) var(--vm-warn, #ffb020); }
+.led[data-status="expired"] { background: var(--vm-bad, #ff4d5e); box-shadow: 0 0 calc(10px * var(--vm-glow, 1)) var(--vm-bad, #ff4d5e); }
+.who, .next { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.name { font-weight: 650; font-size: calc(14px * var(--vm-fs, 1)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sub, .k {
+  font: calc(10px * var(--vm-fs, 1))/1.3 var(--vm-mono, monospace); letter-spacing: .12em; text-transform: uppercase;
+  color: var(--vm-dim, var(--secondary-text-color)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.v { font-size: calc(13px * var(--vm-fs, 1)); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.v[data-status="warning"] { color: var(--vm-warn, #ffb020); }
+.v[data-status="expired"] { color: var(--vm-bad, #ff4d5e); }
+.stats { display: flex; gap: 14px; justify-content: flex-end; }
+.stat { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.empty { color: var(--vm-dim, var(--secondary-text-color)); font-size: 13px; padding: 10px 2px; }
+@media (max-width: 560px) {
+  .row { grid-template-columns: 12px minmax(0, 1fr) auto; }
+  .stats { grid-column: 2 / -1; justify-content: flex-start; }
+}
+`;
+
+class VehicleManagerGarageCard extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: "open" });
+    this._themeUnsub = null;
+  }
+
+  static getConfigElement() {
+    return document.createElement("vehicle-manager-garage-card-editor");
+  }
+
+  static getStubConfig() {
+    return { type: "custom:vehicle-manager-garage-card" };
+  }
+
+  setConfig(config) {
+    this._config = { title: "Garaj", ...config };
+    this._signature = null;
+    if (this._hass) this._render();
+  }
+
+  getCardSize() {
+    return 2 + this._vehicles().length;
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    this._subscribeTheme();
+    this._render();
+  }
+
+  connectedCallback() {
+    if (this._hass) this._subscribeTheme();
+  }
+
+  disconnectedCallback() {
+    const pending = this._themeUnsub;
+    this._themeUnsub = null;
+    pending?.then((unsub) => unsub?.()).catch(() => {});
+  }
+
+  /* aceeasi tema ca in cardul principal (salvata din Themes) */
+  _subscribeTheme() {
+    const connection = this._hass?.connection;
+    if (this._themeUnsub || !connection || !this.isConnected) return;
+    this._themeUnsub = connection
+      .subscribeMessage(
+        (message) => {
+          this._theme = normalizeTheme(message.theme || null);
+          this._applyTheme();
+        },
+        { type: THEME_WS_SUBSCRIBE }
+      )
+      .catch(() => null);
+  }
+
+  _applyTheme() {
+    const card = this.shadowRoot.querySelector("ha-card");
+    if (!card || !this._theme) return;
+    for (const [name, value] of Object.entries(themeToCss(this._theme))) {
+      card.style.setProperty(name, value);
+    }
+  }
+
+  _vehicles() {
+    const hass = this._hass;
+    if (!hass) return [];
+    const explicit = this._config?.vehicles;
+    const ids = Array.isArray(explicit) && explicit.length
+      ? explicit.filter((id) => hass.states[id])
+      : Object.keys(hass.states).filter(
+          (id) => id.startsWith("sensor.") && hass.states[id].attributes?.vm_card === true
+        );
+    return ids
+      .map((id) => hass.states[id])
+      .sort((a, b) =>
+        String(a.attributes.vehicle_name || a.entity_id).localeCompare(
+          String(b.attributes.vehicle_name || b.entity_id),
+          "ro"
+        )
+      );
+  }
+
+  _render() {
+    const vehicles = this._vehicles();
+    const related = (state, key) => this._hass.states[state.attributes.entities?.[key]];
+    const signature = vehicles
+      .map((s) => {
+        const cost = related(s, "expenses_year");
+        const fuel = related(s, "fuel_consumption");
+        return `${s.entity_id}|${s.last_updated}|${cost?.state}|${fuel?.state}`;
+      })
+      .join(";") + `|${this._config.title}|${this._config.navigation_path}`;
+    if (signature === this._signature) return;
+    this._signature = signature;
+
+    if (!this.shadowRoot.querySelector("ha-card")) {
+      const style = document.createElement("style");
+      style.textContent = GARAGE_STYLES;
+      const card = document.createElement("ha-card");
+      card.innerHTML = `<h2></h2><div class="list"></div>`;
+      this.shadowRoot.replaceChildren(style, card);
+      this._applyTheme();
+    }
+    const card = this.shadowRoot.querySelector("ha-card");
+    card.querySelector("h2").textContent = this._config.title || "Garaj";
+    const list = card.querySelector(".list");
+
+    if (!vehicles.length) {
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      empty.textContent = "Niciun vehicul. Adauga unul din Setari › Dispozitive si servicii › Vehicle Manager.";
+      list.replaceChildren(empty);
+      return;
+    }
+    list.replaceChildren(...vehicles.map((state) => this._renderRow(state, related)));
+  }
+
+  _renderRow(state, related) {
+    const a = state.attributes;
+    const vehicle = a.vehicle || {};
+    const docs = Object.values(a.documents || {}).filter((d) => d.status !== "unknown");
+    /* cel mai urgent act: intai starea, apoi timpul ramas */
+    const remaining = (d) =>
+      d.days ?? (d.km_remaining !== null && d.km_remaining !== undefined ? d.km_remaining / 50 : Infinity);
+    docs.sort((x, y) => (STATUS_RANK[x.status] ?? 9) - (STATUS_RANK[y.status] ?? 9) || remaining(x) - remaining(y));
+    const next = docs[0];
+    const attention = (a.attention || []).length;
+
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "row";
+    row.innerHTML = `
+      <span class="led"></span>
+      <span class="who"><span class="name"></span><span class="sub"></span></span>
+      <span class="next"><span class="k"></span><span class="v"></span></span>
+      <span class="stats"></span>`;
+    row.querySelector(".led").dataset.status = state.state;
+    row.querySelector(".name").textContent = a.vehicle_name || state.entity_id;
+    row.querySelector(".sub").textContent =
+      [vehicle.license_plate, [vehicle.make, vehicle.model].filter(Boolean).join(" ")].filter(Boolean).join(" · ");
+
+    if (next) {
+      row.querySelector(".k").textContent =
+        attention > 1 ? `${next.label} (+${attention - 1} acte)` : next.label;
+      const value = row.querySelector(".v");
+      value.textContent = shortRemaining(next);
+      value.dataset.status = next.status;
+    } else {
+      row.querySelector(".k").textContent = "Acte";
+      row.querySelector(".v").textContent = "necompletate";
+    }
+
+    const stats = row.querySelector(".stats");
+    const addStat = (label, value) => {
+      const stat = document.createElement("span");
+      stat.className = "stat";
+      stat.innerHTML = `<span class="k"></span><span class="v"></span>`;
+      stat.querySelector(".k").textContent = label;
+      stat.querySelector(".v").textContent = value;
+      stats.append(stat);
+    };
+    const cost = related(state, "expenses_year");
+    if (cost && !["unknown", "unavailable"].includes(cost.state)) {
+      const unit = cost.attributes.unit_of_measurement || "";
+      addStat(`Costuri ${new Date().getFullYear()}`, `${formatNumber(Math.round(Number(cost.state)))} ${unit}`);
+    }
+    const fuel = related(state, "fuel_consumption");
+    if (fuel && !["unknown", "unavailable"].includes(fuel.state)) {
+      addStat("Consum", `${formatNumber(Number(fuel.state))} ${fuel.attributes.unit_of_measurement || ""}`);
+    }
+    const parking = vehicle.parking;
+    if (parking) {
+      addStat("Parcare", parking.state === "driving" ? "in mers" : timeAgo(parking.time));
+    }
+
+    row.addEventListener("click", () => {
+      if (this._config.navigation_path) navigate(this._config.navigation_path);
+      else moreInfo(this, state.entity_id);
+    });
+    return row;
+  }
+}
+
+if (!customElements.get("vehicle-manager-garage-card")) {
+  customElements.define("vehicle-manager-garage-card", VehicleManagerGarageCard);
+}
+
+class VehicleManagerGarageCardEditor extends HTMLElement {
+  setConfig(config) {
+    this._config = config;
+    this._render();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    if (this._form) this._form.hass = hass;
+  }
+
+  _render() {
+    if (!this._form) {
+      this._form = document.createElement("ha-form");
+      const labels = {
+        title: "Titlu",
+        navigation_path: "Pagina deschisa la atingerea unui vehicul (gol = detaliile vehiculului)",
+      };
+      this._form.computeLabel = (schema) => labels[schema.name] || schema.name;
+      this._form.addEventListener("value-changed", (event) => {
+        event.stopPropagation();
+        fireEvent(this, "config-changed", { config: event.detail.value });
+      });
+      this.replaceChildren(this._form);
+    }
+    this._form.schema = [
+      { name: "title", selector: { text: {} } },
+      { name: "navigation_path", selector: { navigation: {} } },
+    ];
+    this._form.data = this._config;
+    if (this._hass) this._form.hass = this._hass;
+  }
+}
+
+if (!customElements.get("vehicle-manager-garage-card-editor")) {
+  customElements.define("vehicle-manager-garage-card-editor", VehicleManagerGarageCardEditor);
+}
+
+if (!window.customCards.some((card) => card.type === "vehicle-manager-garage-card")) window.customCards.push({
+  type: "vehicle-manager-garage-card",
+  name: "Vehicle Manager Garage",
+  description: "Toate vehiculele pe scurt: starea actelor, urmatoarea scadenta, costurile anului, consumul si parcarea.",
   preview: true,
   documentationURL: "https://github.com/alinalecu2013/ha-vehicle-manager",
 });
