@@ -72,7 +72,8 @@
           "documents": "Documents and due dates",
           "media": "Photo and 3D model",
           "thresholds": "Warning thresholds",
-          "mileage_source": "Automatic mileage"
+          "mileage_source": "Automatic mileage",
+          "parking": "Where I parked"
         }
       },
       "vehicle": {
@@ -122,6 +123,15 @@
         "description": "Pick a sensor that reports the odometer (OBD adapter, the car maker's app, Android Auto...). The vehicle mileage is then updated automatically. Only increases are applied, so a wrong reading cannot lower it; miles and meters are converted to km. Clear the field to go back to manual mileage.",
         "data": { "mileage_source": "Odometer sensor" }
       },
+      "parking": {
+        "title": "Where I parked",
+        "description": "When your phone disconnects from the car's Bluetooth, the phone's GPS position is saved as the parking spot (shown on the map and in the card). Pick the phone's tracker and its Bluetooth connection sensor (both from the Home Assistant Companion app), and type the car's Bluetooth name or address as it appears in the sensor's connected_paired_devices attribute. Clear all fields to turn it off.",
+        "data": {
+          "parking_tracker": "Phone location (device tracker)",
+          "parking_bt_sensor": "Phone Bluetooth connection sensor",
+          "parking_bt_device": "Car Bluetooth name or address"
+        }
+      },
       "thresholds": {
         "title": "Warning thresholds",
         "data": {
@@ -131,7 +141,8 @@
       }
     },
     "error": {
-      "not_numeric": "The selected entity does not report a number in km, mi or m."
+      "not_numeric": "The selected entity does not report a number in km, mi or m.",
+      "parking_incomplete": "Fill in all three fields, or clear all of them to turn this off."
     }
   },
   "selector": {
@@ -232,6 +243,9 @@
     },
     "calendar": {
       "deadlines": { "name": "Deadlines" }
+    },
+    "device_tracker": {
+      "parking_location": { "name": "Parking location" }
     }
   },
   "services": {
@@ -308,6 +322,15 @@
       "description": "Deletes an expense from the cost history.",
       "fields": {
         "expense_id": { "name": "Expense id", "description": "The id shown in the card or returned when the expense was added." }
+      }
+    },
+    "set_parking": {
+      "name": "Set parking location",
+      "description": "Saves where the vehicle is parked: from an entity's position (phone, person, zone) or from coordinates.",
+      "fields": {
+        "source": { "name": "Position from", "description": "A device tracker, person or zone whose current position is used." },
+        "latitude": { "name": "Latitude", "description": "Used when no source entity is given." },
+        "longitude": { "name": "Longitude", "description": "Used when no source entity is given." }
       }
     }
   }

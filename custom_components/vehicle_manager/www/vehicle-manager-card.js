@@ -54,7 +54,21 @@ const SPEC_ROWS = [
   { key: "engine_capacity", label: "Capacitate motor", icon: "mdi:engine", unit: "cm³" },
   { key: "fuel_type", label: "Combustibil", icon: "mdi:gas-station", useLabel: "fuel_label" },
   { key: "license_plate", label: "Nr. inmatriculare", icon: "mdi:card-text-outline" },
+  { key: "parking", label: "Parcare", icon: "mdi:car-brake-parking" },
 ];
+
+/* "acum 5 min", "acum 3 h", "acum 2 zile" */
+function timeAgo(iso) {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "";
+  const minutes = Math.max(0, Math.round((Date.now() - then) / 60000));
+  if (minutes < 1) return "chiar acum";
+  if (minutes < 60) return `acum ${minutes} min`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `acum ${hours} h`;
+  const days = Math.round(hours / 24);
+  return days === 1 ? "ieri" : `acum ${days} zile`;
+}
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -1219,6 +1233,13 @@ ha-card::before {
   font-size: calc(13.5px * var(--vm-fs)); font-weight: 600; text-align: right;
   display: inline-flex; align-items: center; gap: 6px;
 }
+.spec .nav {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 7px;
+  color: var(--vm-accent); border: 1px solid color-mix(in srgb, var(--vm-accent) 55%, transparent);
+}
+.spec .nav ha-icon { --mdc-icon-size: 16px; color: var(--vm-accent); }
+.spec .when { font-size: calc(12.5px * var(--vm-fs)); }
 .spec .auto {
   font: 600 calc(8.5px * var(--vm-fs))/1 var(--vm-mono); letter-spacing: .12em; text-transform: uppercase;
   padding: 3px 5px; border-radius: 5px;
@@ -3010,7 +3031,9 @@ class VehicleManagerCard extends HTMLElement {
 
     /* --- caracteristici --- */
     el.specList.replaceChildren(
-      ...this._visibleSpecs().map((row) => this._renderSpec(row, vehicle, entities))
+      ...this._visibleSpecs()
+        .filter((row) => row.key !== "parking" || vehicle.parking || this._config.specs?.includes("parking"))
+        .map((row) => this._renderSpec(row, vehicle, entities))
     );
 
     /* --- acte --- */
@@ -3139,7 +3162,38 @@ class VehicleManagerCard extends HTMLElement {
     return "—";
   }
 
+  _renderParking(row, parking) {
+    const node = document.createElement("div");
+    node.className = "spec";
+    node.innerHTML = `<ha-icon></ha-icon><span class="k"></span><span class="v"><span class="when"></span></span>`;
+    node.querySelector("ha-icon").setAttribute("icon", row.icon);
+    node.querySelector(".k").textContent = row.label;
+    const when = node.querySelector(".when");
+
+    if (!parking) {
+      when.textContent = "—";
+      return node;
+    }
+    if (parking.state === "driving") {
+      when.textContent = "in mers";
+    } else {
+      when.textContent = timeAgo(parking.time) || "parcata";
+    }
+    if (parking.latitude != null && parking.longitude != null) {
+      const link = document.createElement("a");
+      link.className = "nav";
+      link.href = `https://www.google.com/maps/search/?api=1&query=${parking.latitude},${parking.longitude}`;
+      link.target = "_blank";
+      link.rel = "noopener";
+      link.title = parking.state === "driving" ? "Ultimul loc de parcare" : "Navigheaza pana la masina";
+      link.innerHTML = `<ha-icon icon="mdi:navigation-variant"></ha-icon>`;
+      node.querySelector(".v").append(link);
+    }
+    return node;
+  }
+
   _renderSpec(row, vehicle, entities) {
+    if (row.key === "parking") return this._renderParking(row, vehicle.parking);
     const raw = row.useLabel ? vehicle[row.useLabel] : vehicle[row.key];
     const entityId = row.entity ? entities[row.entity] : null;
     const clickable = Boolean(entityId);

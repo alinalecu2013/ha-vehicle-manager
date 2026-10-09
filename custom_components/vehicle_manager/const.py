@@ -8,7 +8,15 @@ from typing import Final
 DOMAIN: Final = "vehicle_manager"
 VERSION: Final = "1.9.0"
 
-PLATFORMS: Final = ["sensor", "binary_sensor", "number", "date", "image", "calendar"]
+PLATFORMS: Final = [
+    "sensor",
+    "binary_sensor",
+    "number",
+    "date",
+    "image",
+    "calendar",
+    "device_tracker",
+]
 
 UPDATE_INTERVAL: Final = timedelta(minutes=15)
 
@@ -26,6 +34,11 @@ CONF_YEAR: Final = "year"
 CONF_MILEAGE: Final = "mileage"
 # Senzorul din care se preia automat kilometrajul (optional)
 CONF_MILEAGE_SOURCE: Final = "mileage_source"
+# Unde am parcat (vezi parking.py)
+CONF_PARKING: Final = "parking"
+CONF_PARKING_TRACKER: Final = "parking_tracker"
+CONF_PARKING_BT_SENSOR: Final = "parking_bt_sensor"
+CONF_PARKING_BT_DEVICE: Final = "parking_bt_device"
 CONF_COLOR: Final = "color"
 CONF_ENGINE_CAPACITY: Final = "engine_capacity"
 CONF_FUEL_TYPE: Final = "fuel_type"
@@ -231,6 +244,7 @@ ATTR_MILEAGE: Final = "mileage"
 # --- Cheltuieli ---
 SERVICE_ADD_EXPENSE: Final = "add_expense"
 SERVICE_DELETE_EXPENSE: Final = "delete_expense"
+SERVICE_SET_PARKING: Final = "set_parking"
 
 ATTR_CATEGORY: Final = "category"
 ATTR_AMOUNT: Final = "amount"

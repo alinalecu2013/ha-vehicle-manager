@@ -28,6 +28,9 @@ from .const import (
     CONF_MEDIA_ID,
     CONF_MILEAGE,
     CONF_MILEAGE_SOURCE,
+    CONF_PARKING_BT_DEVICE,
+    CONF_PARKING_BT_SENSOR,
+    CONF_PARKING_TRACKER,
     CONF_MODEL,
     CONF_MODEL_3D,
     CONF_MODEL_3D_UPLOAD,
@@ -354,7 +357,14 @@ class VehicleManagerOptionsFlow(OptionsFlow):
         """Meniul principal."""
         return self.async_show_menu(
             step_id="init",
-            menu_options=["vehicle", "documents", "media", "thresholds", "mileage_source"],
+            menu_options=[
+                "vehicle",
+                "documents",
+                "media",
+                "thresholds",
+                "mileage_source",
+                "parking",
+            ],
         )
 
     async def async_step_vehicle(
@@ -464,6 +474,39 @@ class VehicleManagerOptionsFlow(OptionsFlow):
                                 domain=["sensor", "number", "input_number"]
                             )
                         )
+                    }
+                ),
+                user_input or self._current,
+            ),
+            errors=errors,
+        )
+
+    async def async_step_parking(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Telefonul si Bluetooth-ul masinii, pentru locul de parcare automat."""
+        keys = (CONF_PARKING_TRACKER, CONF_PARKING_BT_SENSOR, CONF_PARKING_BT_DEVICE)
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            cleaned = {k: str(user_input[k]).strip() for k in keys if user_input.get(k)}
+            if not cleaned:
+                return await self._async_save({}, set(keys))
+            if len(cleaned) == len(keys):
+                return await self._async_save(cleaned, set())
+            errors["base"] = "parking_incomplete"
+
+        return self.async_show_form(
+            step_id="parking",
+            data_schema=self.add_suggested_values_to_schema(
+                vol.Schema(
+                    {
+                        vol.Optional(CONF_PARKING_TRACKER): selector.EntitySelector(
+                            selector.EntitySelectorConfig(domain="device_tracker")
+                        ),
+                        vol.Optional(CONF_PARKING_BT_SENSOR): selector.EntitySelector(
+                            selector.EntitySelectorConfig(domain="sensor")
+                        ),
+                        vol.Optional(CONF_PARKING_BT_DEVICE): selector.TextSelector(),
                     }
                 ),
                 user_input or self._current,

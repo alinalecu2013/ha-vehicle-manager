@@ -72,7 +72,8 @@
           "documents": "Acte si scadente",
           "media": "Poza si model 3D",
           "thresholds": "Praguri de avertizare",
-          "mileage_source": "Kilometraj automat"
+          "mileage_source": "Kilometraj automat",
+          "parking": "Unde am parcat"
         }
       },
       "vehicle": {
@@ -122,6 +123,15 @@
         "description": "Alege un senzor care raporteaza kilometrajul (adaptor OBD, aplicatia producatorului, Android Auto...). Kilometrajul vehiculului se actualizeaza apoi automat. Se aplica doar cresterile, deci o citire gresita nu il poate scadea; milele si metrii se convertesc in km. Goleste campul ca sa revii la kilometrajul manual.",
         "data": { "mileage_source": "Senzor kilometraj" }
       },
+      "parking": {
+        "title": "Unde am parcat",
+        "description": "Cand telefonul se deconecteaza de la Bluetooth-ul masinii, pozitia GPS a telefonului se salveaza ca loc de parcare (pe harta si in card). Alege localizarea telefonului si senzorul lui de conexiune Bluetooth (ambele din aplicatia Home Assistant Companion) si scrie numele sau adresa Bluetooth a masinii, asa cum apare in atributul connected_paired_devices al senzorului. Goleste toate campurile ca sa opresti functia.",
+        "data": {
+          "parking_tracker": "Localizarea telefonului (device tracker)",
+          "parking_bt_sensor": "Senzorul de conexiune Bluetooth al telefonului",
+          "parking_bt_device": "Numele sau adresa Bluetooth a masinii"
+        }
+      },
       "thresholds": {
         "title": "Praguri de avertizare",
         "data": {
@@ -131,7 +141,8 @@
       }
     },
     "error": {
-      "not_numeric": "Entitatea aleasa nu raporteaza un numar in km, mi sau m."
+      "not_numeric": "Entitatea aleasa nu raporteaza un numar in km, mi sau m.",
+      "parking_incomplete": "Completeaza toate cele trei campuri sau goleste-le pe toate ca sa opresti functia."
     }
   },
   "selector": {
@@ -232,6 +243,9 @@
     },
     "calendar": {
       "deadlines": { "name": "Scadente" }
+    },
+    "device_tracker": {
+      "parking_location": { "name": "Locatie parcare" }
     }
   },
   "services": {
@@ -314,6 +328,15 @@
       "description": "Sterge o cheltuiala din istoricul costurilor.",
       "fields": {
         "expense_id": { "name": "Id cheltuiala", "description": "Id-ul afisat in card sau primit la adaugare." }
+      }
+    },
+    "set_parking": {
+      "name": "Seteaza locul de parcare",
+      "description": "Salveaza unde e parcat vehiculul: din pozitia unei entitati (telefon, persoana, zona) sau din coordonate.",
+      "fields": {
+        "source": { "name": "Pozitia de la", "description": "Un device tracker, o persoana sau o zona a carei pozitie curenta se foloseste." },
+        "latitude": { "name": "Latitudine", "description": "Folosita daca nu alegi o entitate." },
+        "longitude": { "name": "Longitudine", "description": "Folosita daca nu alegi o entitate." }
       }
     }
   }

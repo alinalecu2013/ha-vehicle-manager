@@ -46,6 +46,7 @@ from .const import (
     SERVICE_RENEW_DOCUMENT,
     SERVICE_SET_DOCUMENT,
     SERVICE_SET_MILEAGE,
+    SERVICE_SET_PARKING,
     URL_BASE,
     VERSION,
     date_key,
@@ -60,6 +61,12 @@ from .costs import (
 )
 from .files import async_setup_files
 from .mileage import MileageTracker
+from .parking import (
+    STATE_PARKED,
+    ParkingTracker,
+    async_save_parking,
+    position_of,
+)
 from .theme import async_setup_theme
 
 _LOGGER = logging.getLogger(__name__)
@@ -68,6 +75,7 @@ DATA_COORDINATORS = "coordinators"
 DATA_FRONTEND = "frontend_registered"
 DATA_SERVICES = "services_registered"
 DATA_MILEAGE = "mileage_trackers"
+DATA_PARKING = "parking_trackers"
 
 
 def add_months(start: date, months: int) -> date:
@@ -109,6 +117,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     entry.async_on_unload(tracker.async_stop)
     tracker.async_refresh_source()
 
+    parking = ParkingTracker(hass, coordinator)
+    domain_data.setdefault(DATA_PARKING, {})[entry.entry_id] = parking
+    entry.async_on_unload(parking.async_stop)
+    parking.async_refresh_source()
+
     _async_register_services(hass)
     return True
 
@@ -119,6 +132,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if unloaded:
         hass.data[DOMAIN][DATA_COORDINATORS].pop(entry.entry_id, None)
         hass.data[DOMAIN].get(DATA_MILEAGE, {}).pop(entry.entry_id, None)
+        hass.data[DOMAIN].get(DATA_PARKING, {}).pop(entry.entry_id, None)
     return unloaded
 
 
@@ -159,6 +173,11 @@ async def _async_entry_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
     )
     if tracker is not None:
         tracker.async_refresh_source()
+    parking: ParkingTracker | None = (
+        hass.data.get(DOMAIN, {}).get(DATA_PARKING, {}).get(entry.entry_id)
+    )
+    if parking is not None:
+        parking.async_refresh_source()
 
 
 async def _async_ensure_media_dir(hass: HomeAssistant) -> None:
@@ -266,6 +285,16 @@ MARK_SERVICE_DONE_SCHEMA = vol.Schema(
 ADD_EXPENSE_SCHEMA = vol.Schema({**TARGET_SCHEMA, **EXPENSE_FIELDS})
 
 DELETE_EXPENSE_SCHEMA = vol.Schema({vol.Required(ATTR_EXPENSE_ID): cv.string})
+
+SET_PARKING_SCHEMA = vol.Schema(
+    {
+        **TARGET_SCHEMA,
+        vol.Optional("latitude"): vol.All(vol.Coerce(float), vol.Range(min=-90, max=90)),
+        vol.Optional("longitude"): vol.All(vol.Coerce(float), vol.Range(min=-180, max=180)),
+        # sau pozitia curenta a unei entitati (telefon, persoana, zona)
+        vol.Optional("source"): cv.entity_id,
+    }
+)
 
 
 def _resolve_coordinators(
@@ -397,6 +426,20 @@ def _async_register_services(hass: HomeAssistant) -> None:
         for coordinator in _resolve_coordinators(hass, call):
             await async_add_expense(hass, coordinator.entry.entry_id, dict(call.data))
 
+    async def _set_parking(call: ServiceCall) -> None:
+        if "source" in call.data:
+            position = position_of(hass.states.get(call.data["source"]))
+            if position is None:
+                raise ServiceValidationError(
+                    f"{call.data['source']} nu are o pozitie GPS (latitude/longitude)."
+                )
+        elif "latitude" in call.data and "longitude" in call.data:
+            position = {"latitude": call.data["latitude"], "longitude": call.data["longitude"]}
+        else:
+            raise ServiceValidationError("Da fie latitude + longitude, fie source.")
+        for coordinator in _resolve_coordinators(hass, call):
+            await async_save_parking(coordinator, position, STATE_PARKED)
+
     async def _delete_expense(call: ServiceCall) -> None:
         if not await get_cost_manager(hass).async_delete(call.data[ATTR_EXPENSE_ID]):
             raise ServiceValidationError("Cheltuiala cu acest id nu exista.")
@@ -421,6 +464,9 @@ def _async_register_services(hass: HomeAssistant) -> None:
     )
     hass.services.async_register(
         DOMAIN, SERVICE_DELETE_EXPENSE, _delete_expense, schema=DELETE_EXPENSE_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_SET_PARKING, _set_parking, schema=SET_PARKING_SCHEMA
     )
 
     domain_data[DATA_SERVICES] = True

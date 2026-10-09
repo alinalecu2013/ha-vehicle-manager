@@ -209,3 +209,30 @@ delete_expense:
       required: true
       selector:
         text:
+
+set_parking:
+  target:
+    entity:
+      integration: vehicle_manager
+  fields:
+    source:
+      selector:
+        entity:
+          domain:
+            - device_tracker
+            - person
+            - zone
+    latitude:
+      selector:
+        number:
+          min: -90
+          max: 90
+          step: 0.000001
+          mode: box
+    longitude:
+      selector:
+        number:
+          min: -180
+          max: 180
+          step: 0.000001
+          mode: box
