@@ -19,7 +19,7 @@ from homeassistant.helpers.dispatcher import (
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN, EXPENSE_CATEGORIES
+from .const import CONF_MILEAGE, DOMAIN, EXPENSE_CATEGORIES, FUEL_CATEGORY
 
 STORAGE_KEY = f"{DOMAIN}.expenses"
 STORAGE_VERSION = 1
@@ -32,6 +32,7 @@ WS_DELETE = f"{DOMAIN}/expenses/delete"
 
 NOTE_MAX = 200
 AMOUNT_MAX = 10_000_000
+QUANTITY_MAX = 1_000
 
 # Campurile unei cheltuieli, comune serviciilor si comenzilor websocket.
 EXPENSE_FIELDS = {
@@ -40,7 +41,75 @@ EXPENSE_FIELDS = {
     vol.Optional("date"): cv.date,
     vol.Optional("mileage"): vol.Any(None, vol.All(vol.Coerce(int), vol.Range(min=0))),
     vol.Optional("note"): vol.All(cv.string, vol.Length(max=NOTE_MAX)),
+    # doar pentru combustibil: litri (sau kWh) si daca s-a facut plinul complet
+    vol.Optional("quantity"): vol.Any(
+        None, vol.All(vol.Coerce(float), vol.Range(min=0, max=QUANTITY_MAX))
+    ),
+    vol.Optional("full_tank"): cv.boolean,
 }
+
+
+def fuel_segments(expenses: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Consumul pe intervale "plin la plin".
+
+    Intre doua plinuri complete se aduna cantitatea (si costul) tuturor alimentarilor,
+    inclusiv cele partiale, si se imparte la kilometrii parcursi. Primul plin complet
+    doar fixeaza punctul de pornire; alimentarile fara kilometraj sunt ignorate.
+    """
+    fills = sorted(
+        (
+            e
+            for e in expenses
+            if e["category"] == FUEL_CATEGORY
+            and e.get("quantity")
+            and e.get("mileage") is not None
+        ),
+        key=lambda e: (e["mileage"], e["date"], e["id"]),
+    )
+    segments: list[dict[str, Any]] = []
+    start_km: int | None = None
+    quantity = cost = 0.0
+    for fill in fills:
+        if start_km is None:
+            if fill.get("full_tank", True):
+                start_km = fill["mileage"]
+            continue
+        quantity += fill["quantity"]
+        cost += fill["amount"]
+        if not fill.get("full_tank", True):
+            continue
+        km = fill["mileage"] - start_km
+        if km > 0:
+            segments.append(
+                {
+                    "id": fill["id"],
+                    "date": fill["date"],
+                    "km": km,
+                    "quantity": round(quantity, 2),
+                    "cost": round(cost, 2),
+                    "consumption": round(quantity / km * 100, 2),
+                }
+            )
+        start_km = fill["mileage"]
+        quantity = cost = 0.0
+    return segments
+
+
+def fuel_summary(segments: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """Consumul mediu si costul pe km pe toate intervalele masurate."""
+    km = sum(s["km"] for s in segments)
+    if not km:
+        return None
+    quantity = sum(s["quantity"] for s in segments)
+    cost = sum(s["cost"] for s in segments)
+    return {
+        "consumption": round(quantity / km * 100, 2),
+        "cost_per_km": round(cost / km, 3),
+        "km": km,
+        "quantity": round(quantity, 2),
+        "last_consumption": segments[-1]["consumption"],
+        "last_date": segments[-1]["date"],
+    }
 
 
 def signal_expenses(entry_id: str) -> str:
@@ -103,6 +172,8 @@ class CostManager:
         date_: date | None = None,
         mileage: int | None = None,
         note: str = "",
+        quantity: float | None = None,
+        full_tank: bool = True,
     ) -> dict[str, Any]:
         item = {
             "id": secrets.token_hex(8),
@@ -112,9 +183,17 @@ class CostManager:
             "mileage": mileage,
             "note": (note or "").strip()[:NOTE_MAX],
         }
+        if category == FUEL_CATEGORY and quantity:
+            item["quantity"] = round(float(quantity), 2)
+            item["full_tank"] = bool(full_tank)
         self._data.setdefault(entry_id, []).append(item)
         await self._async_changed(entry_id)
         return item
+
+    def fuel(self, entry_id: str) -> dict[str, Any]:
+        """Intervalele de consum si rezumatul lor, pentru card si senzori."""
+        segments = fuel_segments(self._data.get(entry_id, []))
+        return {"segments": segments, "summary": fuel_summary(segments)}
 
     async def async_delete(self, expense_id: str) -> bool:
         for entry_id, items in self._data.items():
@@ -136,6 +215,29 @@ class CostManager:
 
 def get_cost_manager(hass: HomeAssistant) -> CostManager:
     return hass.data[DOMAIN][DATA_COSTS]
+
+
+async def async_add_expense(
+    hass: HomeAssistant, entry_id: str, fields: dict[str, Any]
+) -> dict[str, Any]:
+    """Adauga o cheltuiala si, daca are un kilometraj mai mare, actualizeaza vehiculul."""
+    item = await get_cost_manager(hass).async_add(
+        entry_id,
+        category=fields["category"],
+        amount=fields["amount"],
+        date_=fields.get("date"),
+        mileage=fields.get("mileage"),
+        note=fields.get("note", ""),
+        quantity=fields.get("quantity"),
+        full_tank=fields.get("full_tank", True),
+    )
+    coordinator = hass.data[DOMAIN].get("coordinators", {}).get(entry_id)
+    mileage = item["mileage"]
+    if coordinator is not None and mileage is not None:
+        current = coordinator.option(CONF_MILEAGE)
+        if current is None or mileage > int(float(current)):
+            await coordinator.async_set_options({CONF_MILEAGE: mileage})
+    return item
 
 
 async def async_setup_costs(hass: HomeAssistant) -> CostManager:
@@ -182,6 +284,7 @@ def ws_subscribe_expenses(
                 {
                     "expenses": manager.expenses(entry_id),
                     "currency": hass.config.currency,
+                    "fuel": manager.fuel(entry_id),
                 },
             )
         )
@@ -210,14 +313,7 @@ async def ws_add_expense(
     if not _known_entry(hass, msg["entry_id"]):
         connection.send_error(msg["id"], "not_found", "Vehicul necunoscut")
         return
-    item = await get_cost_manager(hass).async_add(
-        msg["entry_id"],
-        category=msg["category"],
-        amount=msg["amount"],
-        date_=msg.get("date"),
-        mileage=msg.get("mileage"),
-        note=msg.get("note", ""),
-    )
+    item = await async_add_expense(hass, msg["entry_id"], msg)
     connection.send_result(msg["id"], item)
 
 

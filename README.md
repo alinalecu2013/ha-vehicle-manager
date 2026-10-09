@@ -141,6 +141,25 @@ toate dispozitivele si se actualizeaza live. Moneda este cea setata in
 **Setari &rsaquo; Sistem &rsaquo; General**. La stergerea unui vehicul se sterge si
 istoricul lui de cheltuieli.
 
+### Jurnal de alimentari
+
+Alimentarile se adauga tot din panoul **Costuri**, la categoria **Combustibil**: apar doua
+campuri in plus, **Cantitate** (litri, sau kWh la masinile electrice) si **Plin complet**.
+
+Consumul se calculeaza prin metoda *plin la plin*: cantitatea alimentata intre doua
+plinuri complete (inclusiv alimentarile partiale dintre ele) impartita la kilometrii
+parcursi. De aceea:
+
+- completeaza **kilometrajul** la fiecare alimentare (fara el, alimentarea nu intra in calcul);
+- primul plin complet doar fixeaza punctul de pornire; consumul apare de la al doilea.
+
+In panou apar consumul mediu, costul combustibilului pe km si kilometrii masurati, iar la
+fiecare plin consumul calculat pentru intervalul respectiv. Senzorul **Consum mediu**
+poate fi folosit in grafice si automatizari.
+
+Daca o cheltuiala (de orice categorie) are un kilometraj mai mare decat cel al
+vehiculului, kilometrajul vehiculului se actualizeaza automat.
+
 ### Themes
 
 Butonul **Themes** din bara de sus deschide meniul de personalizare direct din dashboard:
@@ -204,6 +223,7 @@ Daca three.js nu poate fi incarcat si vehiculul are poza, cardul comuta automat 
 | `calendar` | Scadente | Un eveniment pe toata ziua pentru fiecare act cu data de scadenta. |
 | `sensor` | Cheltuieli anul curent | Suma cheltuielilor din anul curent (in moneda setata in HA), cu defalcare pe categorii in atribute. |
 | `sensor` | Cheltuieli totale | Suma tuturor cheltuielilor inregistrate. |
+| `sensor` | Consum mediu | L/100 km (kWh/100 km la electrice), din alimentari; in atribute: ultimul plin, costul pe km, km masurati. |
 
 Pragurile de avertizare (implicit 30 de zile si 1000 km) se configureaza per vehicul din
 **Configurare &rsaquo; Praguri de avertizare**.
@@ -266,7 +286,8 @@ trateaza doar butoanele propriilor notificari.
   actuala daca e in viitor, altfel de la azi).
 - `vehicle_manager.mark_service_done` — inregistreaza o revizie sau o distributie si
   calculeaza automat urmatoarea scadenta.
-- `vehicle_manager.add_expense` — adauga o cheltuiala (categorie, suma, data, km, nota).
+- `vehicle_manager.add_expense` — adauga o cheltuiala (categorie, suma, data, km, nota;
+  pentru combustibil si `quantity` / `full_tank`).
 - `vehicle_manager.delete_expense` — sterge o cheltuiala dupa id.
 
 `renew_document` si `mark_service_done` accepta si campul optional `cost`: suma platita

@@ -182,7 +182,8 @@
       "license_plate": { "name": "License plate" },
       "vin": { "name": "VIN" },
       "expenses_year": { "name": "Expenses this year" },
-      "expenses_total": { "name": "Total expenses" }
+      "expenses_total": { "name": "Total expenses" },
+      "fuel_consumption": { "name": "Average consumption" }
     },
     "binary_sensor": {
       "attention": { "name": "Documents need attention" },
@@ -271,7 +272,9 @@
         "amount": { "name": "Amount", "description": "The amount paid, in the currency set in Home Assistant." },
         "date": { "name": "Date", "description": "When it was paid. Defaults to today." },
         "mileage": { "name": "Mileage", "description": "Optional: the odometer value at that moment." },
-        "note": { "name": "Note", "description": "Optional: details, e.g. the garage or the parts changed." }
+        "note": { "name": "Note", "description": "Optional: details, e.g. the garage or the parts changed." },
+        "quantity": { "name": "Quantity", "description": "Only for fuel: litres (or kWh for electric cars) added." },
+        "full_tank": { "name": "Full tank", "description": "Only for fuel: the tank was filled up. Needed to calculate consumption." }
       }
     },
     "delete_expense": {

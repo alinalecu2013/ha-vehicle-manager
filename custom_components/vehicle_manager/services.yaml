@@ -179,6 +179,18 @@ add_expense:
       example: Schimb placute frana fata
       selector:
         text:
+    quantity:
+      example: 42.5
+      selector:
+        number:
+          min: 0
+          max: 1000
+          step: 0.01
+          mode: box
+    full_tank:
+      default: true
+      selector:
+        boolean:
 
 delete_expense:
   fields:

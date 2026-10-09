@@ -21,8 +21,6 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
 from .const import (
-    ATTR_AMOUNT,
-    ATTR_CATEGORY,
     ATTR_COST,
     ATTR_DATE,
     ATTR_DOCUMENT,
@@ -32,7 +30,6 @@ from .const import (
     ATTR_KM,
     ATTR_MILEAGE,
     ATTR_MONTHS,
-    ATTR_NOTE,
     CARD_FILENAME,
     HACS_CARD_REPO,
     CONF_MEDIA_ID,
@@ -54,7 +51,12 @@ from .const import (
     km_key,
 )
 from .coordinator import VehicleCoordinator, as_date, as_int
-from .costs import EXPENSE_FIELDS, async_setup_costs, get_cost_manager
+from .costs import (
+    EXPENSE_FIELDS,
+    async_add_expense,
+    async_setup_costs,
+    get_cost_manager,
+)
 from .mileage import MileageTracker
 from .theme import async_setup_theme
 
@@ -385,14 +387,7 @@ def _async_register_services(hass: HomeAssistant) -> None:
 
     async def _add_expense(call: ServiceCall) -> None:
         for coordinator in _resolve_coordinators(hass, call):
-            await get_cost_manager(hass).async_add(
-                coordinator.entry.entry_id,
-                category=call.data[ATTR_CATEGORY],
-                amount=call.data[ATTR_AMOUNT],
-                date_=call.data.get(ATTR_DATE),
-                mileage=call.data.get(ATTR_MILEAGE),
-                note=call.data.get(ATTR_NOTE, ""),
-            )
+            await async_add_expense(hass, coordinator.entry.entry_id, dict(call.data))
 
     async def _delete_expense(call: ServiceCall) -> None:
         if not await get_cost_manager(hass).async_delete(call.data[ATTR_EXPENSE_ID]):

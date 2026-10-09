@@ -74,6 +74,7 @@ async def async_setup_entry(
     )
     entities.append(VehicleExpenseSensor(coordinator, yearly=True))
     entities.append(VehicleExpenseSensor(coordinator, yearly=False))
+    entities.append(VehicleFuelSensor(coordinator))
     async_add_entities(entities)
 
 
@@ -278,4 +279,58 @@ class VehicleExpenseSensor(VehicleEntity, SensorEntity):
             "an": summary["year"],
             "numar_cheltuieli": summary["year_count"],
             "pe_categorii": summary["year_by_category"],
+        }
+
+
+class VehicleFuelSensor(VehicleEntity, SensorEntity):
+    """Consumul mediu calculat din alimentari, metoda "plin la plin"."""
+
+    _attr_translation_key = "fuel_consumption"
+    _attr_icon = "mdi:gas-station-outline"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_suggested_display_precision = 1
+
+    def __init__(self, coordinator: VehicleCoordinator) -> None:
+        """Initializeaza senzorul de consum."""
+        super().__init__(coordinator, "fuel_consumption")
+
+    async def async_added_to_hass(self) -> None:
+        """Se recalculeaza la fiecare alimentare adaugata sau stearsa."""
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass,
+                signal_expenses(self.coordinator.entry.entry_id),
+                self.async_write_ha_state,
+            )
+        )
+
+    @property
+    def native_unit_of_measurement(self) -> str:
+        """kWh/100 km pentru masini electrice, altfel L/100 km."""
+        electric = self.coordinator.option(CONF_FUEL_TYPE) == "electric"
+        return "kWh/100 km" if electric else "L/100 km"
+
+    @property
+    def _summary(self) -> dict[str, Any] | None:
+        return get_cost_manager(self.hass).fuel(self.coordinator.entry.entry_id)["summary"]
+
+    @property
+    def native_value(self) -> float | None:
+        """Consumul mediu pe toate intervalele masurate (gol pana la doua plinuri)."""
+        summary = self._summary
+        return summary["consumption"] if summary else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Ultimul plin, costul pe km si distanta pe care s-a masurat."""
+        summary = self._summary
+        if not summary:
+            return None
+        return {
+            "ultimul_plin": summary["last_consumption"],
+            "data_ultimului_plin": summary["last_date"],
+            "cost_pe_km": summary["cost_per_km"],
+            "km_masurati": summary["km"],
+            "cantitate_totala": summary["quantity"],
         }

@@ -6,7 +6,7 @@ from datetime import timedelta
 from typing import Final
 
 DOMAIN: Final = "vehicle_manager"
-VERSION: Final = "1.7.0"
+VERSION: Final = "1.8.0"
 
 PLATFORMS: Final = ["sensor", "binary_sensor", "number", "date", "image", "calendar"]
 
@@ -201,6 +201,11 @@ ATTR_AMOUNT: Final = "amount"
 ATTR_NOTE: Final = "note"
 ATTR_EXPENSE_ID: Final = "expense_id"
 ATTR_COST: Final = "cost"
+ATTR_QUANTITY: Final = "quantity"
+ATTR_FULL_TANK: Final = "full_tank"
+
+# Categoria cheltuielilor din care se calculeaza consumul
+FUEL_CATEGORY: Final = "combustibil"
 
 # Cheie -> (eticheta, iconita). Ordinea e cea din card si din selectoare.
 EXPENSE_CATEGORIES: Final[dict[str, tuple[str, str]]] = {

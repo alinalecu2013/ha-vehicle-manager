@@ -182,7 +182,8 @@
       "license_plate": { "name": "Numar de inmatriculare" },
       "vin": { "name": "Serie de sasiu" },
       "expenses_year": { "name": "Cheltuieli anul curent" },
-      "expenses_total": { "name": "Cheltuieli totale" }
+      "expenses_total": { "name": "Cheltuieli totale" },
+      "fuel_consumption": { "name": "Consum mediu" }
     },
     "binary_sensor": {
       "attention": { "name": "Acte de rezolvat" },
@@ -277,7 +278,9 @@
         "amount": { "name": "Suma", "description": "Suma platita, in moneda setata in Home Assistant." },
         "date": { "name": "Data", "description": "Cand a fost platita. Implicit azi." },
         "mileage": { "name": "Kilometraj", "description": "Optional: kilometrajul din acel moment." },
-        "note": { "name": "Nota", "description": "Optional: detalii, ex. service-ul sau piesele schimbate." }
+        "note": { "name": "Nota", "description": "Optional: detalii, ex. service-ul sau piesele schimbate." },
+        "quantity": { "name": "Cantitate", "description": "Doar pentru combustibil: litrii (sau kWh pentru masini electrice) alimentati." },
+        "full_tank": { "name": "Plin complet", "description": "Doar pentru combustibil: s-a facut plinul. Necesar pentru calculul consumului." }
       }
     },
     "delete_expense": {

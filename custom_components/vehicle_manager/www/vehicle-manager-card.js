@@ -6,7 +6,7 @@
  * model 3D rotativ in centru, acte in dreapta.
  */
 
-const CARD_VERSION = "1.7.0";
+const CARD_VERSION = "1.8.0";
 const DEFAULT_THREE = "https://esm.sh/three@0.160.0";
 
 console.info(
@@ -1499,6 +1499,9 @@ ha-card::before {
   border: 1px solid var(--vm-line); border-radius: 7px;
 }
 .c-form .c-note { grid-column: span 2; }
+.c-form .c-fuel[hidden] { display: none; }
+.c-form label.c-check { flex-direction: row; align-items: center; gap: 8px; padding-bottom: 8px; }
+.c-form label.c-check input { width: 18px; height: 18px; accent-color: var(--vm-accent); }
 .c-list { display: flex; flex-direction: column; gap: 6px; max-height: 360px; overflow: auto; }
 .c-row {
   display: grid; grid-template-columns: 22px minmax(0, 1fr) auto auto;
@@ -1946,6 +1949,7 @@ class VehicleManagerCard extends HTMLElement {
           if (!this._costs || this._costsEntry !== entryId) return;
           this._costs.expenses = message.expenses || [];
           this._costs.currency = message.currency || null;
+          this._costs.fuel = message.fuel || null;
           this._costs.loaded = true;
           this._renderCostsData();
         },
@@ -1999,6 +2003,8 @@ class VehicleManagerCard extends HTMLElement {
         <label><span>Categorie</span><select name="category"></select></label>
         <label><span>Suma</span><input type="number" name="amount" min="0" step="0.01" inputmode="decimal" required></label>
         <label><span>Kilometraj</span><input type="number" name="mileage" min="0" step="1" inputmode="numeric"></label>
+        <label class="c-fuel" hidden><span class="c-qty-label">Cantitate</span><input type="number" name="quantity" min="0" step="0.01" inputmode="decimal"></label>
+        <label class="c-fuel c-check" hidden><input type="checkbox" name="full_tank" checked><span>Plin complet</span></label>
         <label class="c-note"><span>Nota</span><input type="text" name="note" maxlength="200" placeholder="optional"></label>
         <button class="btn primary" type="submit">Adauga</button>
       </form>
@@ -2014,6 +2020,14 @@ class VehicleManagerCard extends HTMLElement {
       category.append(option);
     }
     form.elements.date.value = todayIso();
+    form.querySelector(".c-qty-label").textContent = this._electric ? "Cantitate (kWh)" : "Cantitate (l)";
+    /* campurile de alimentare apar doar la categoria Combustibil */
+    const toggleFuel = () => {
+      const fuel = category.value === "combustibil";
+      form.querySelectorAll(".c-fuel").forEach((el) => (el.hidden = !fuel));
+    };
+    category.addEventListener("change", toggleFuel);
+    toggleFuel();
     if (this._mileage !== null && this._mileage !== undefined) {
       form.elements.mileage.value = this._mileage;
     }
@@ -2046,6 +2060,11 @@ class VehicleManagerCard extends HTMLElement {
     if (form.elements.mileage.value !== "") message.mileage = Number(form.elements.mileage.value);
     const note = form.elements.note.value.trim();
     if (note) message.note = note;
+    if (message.category === "combustibil" && form.elements.quantity.value !== "") {
+      message.quantity = Number(form.elements.quantity.value);
+      message.full_tank = form.elements.full_tank.checked;
+    }
+    const noMileageForFuel = message.quantity !== undefined && message.mileage === undefined;
 
     const submit = form.querySelector("button[type=submit]");
     submit.disabled = true;
@@ -2053,7 +2072,12 @@ class VehicleManagerCard extends HTMLElement {
       await this._hass.callWS(message);
       form.elements.amount.value = "";
       form.elements.note.value = "";
-      this._setCostsStatus(`Adaugat: ${EXPENSE_CATEGORIES[message.category][0]}, ${this._money(amount)}.`);
+      form.elements.quantity.value = "";
+      form.elements.full_tank.checked = true;
+      this._setCostsStatus(
+        `Adaugat: ${EXPENSE_CATEGORIES[message.category][0]}, ${this._money(amount)}.` +
+          (noMileageForFuel ? " Fara kilometraj, alimentarea nu intra in calculul consumului." : "")
+      );
     } catch (err) {
       this._setCostsStatus(`Cheltuiala nu a putut fi salvata: ${err?.message || err?.code || err}`);
     } finally {
@@ -2121,6 +2145,23 @@ class VehicleManagerCard extends HTMLElement {
           ["Total general", this._money(sum(all))],
           ["Cheltuieli in an", String(items.length)],
         ];
+    /* consumul, din intervalele "plin la plin" calculate pe server */
+    const segments = (costs.fuel?.segments || []).filter(
+      (seg) => costs.year === "all" || seg.date.startsWith(`${costs.year}-`)
+    );
+    const fuelKm = segments.reduce((total, seg) => total + seg.km, 0);
+    const unit = this._electric ? "kWh" : "l";
+    if (fuelKm > 0) {
+      const quantity = segments.reduce((total, seg) => total + seg.quantity, 0);
+      const fuelCost = segments.reduce((total, seg) => total + seg.cost, 0);
+      tiles.push(
+        ["Consum mediu", `${formatNumber(Math.round((quantity / fuelKm) * 1000) / 10)} ${unit}/100 km`],
+        ["Combustibil pe km", this._money(fuelCost / fuelKm)],
+        ["Km masurati", `${formatNumber(fuelKm)} km`]
+      );
+    }
+    const consumptionById = new Map(segments.map((seg) => [seg.id, seg.consumption]));
+
     root.querySelector(".c-tiles").replaceChildren(
       ...tiles.map(([key, value]) => {
         const tile = document.createElement("div");
@@ -2176,6 +2217,12 @@ class VehicleManagerCard extends HTMLElement {
             formatDate(expense.date, language),
             expense.mileage !== null && expense.mileage !== undefined
               ? `${formatNumber(expense.mileage)} km`
+              : null,
+            expense.quantity
+              ? `${formatNumber(expense.quantity)} ${unit}${expense.full_tank === false ? " (partial)" : ""}`
+              : null,
+            consumptionById.has(expense.id)
+              ? `${formatNumber(consumptionById.get(expense.id))} ${unit}/100 km`
               : null,
             expense.note || null,
           ]
@@ -2678,6 +2725,7 @@ class VehicleManagerCard extends HTMLElement {
     /* --- costuri: la schimbarea vehiculului, panoul deschis trece pe noul vehicul --- */
     this._entryId = attributes.entry_id || null;
     this._mileage = vehicle.mileage ?? null;
+    this._electric = vehicle.fuel_type === "electric";
     if (this._costs && this._costsEntry !== this._entryId) {
       this._costs.expenses = [];
       this._costs.loaded = false;
