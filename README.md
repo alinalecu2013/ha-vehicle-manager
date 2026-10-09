@@ -91,6 +91,7 @@ listeaza in meniul drop-down din partea de sus.
 | `compact_items` | `3` | Cate acte se afiseaza in modul compact (1 - 5). |
 | `navigation_path` | - | In modul compact, pagina deschisa la atingerea numelui (ex. `/lovelace/masini`). |
 | `documents` | automat | Lista actelor afisate (vezi mai jos). |
+| `body_type` | `auto` | Caroseria masinii desenate cand nu exista model 3D: `sedan`, `hatchback`, `wagon`, `suv`, `coupe` (implicit ghicita din marca si model). |
 | `specs` | toate | Lista caracteristicilor afisate: `make`, `model`, `year`, `mileage`, `color`, `engine_capacity`, `fuel_type`, `license_plate`. |
 | `accent` | `#00e5ff` | Culoarea accent (ignorata dupa ce salvezi o tema din **Themes**). |
 | `accent2` | `#ff2bd6` | Culoarea accent secundara (idem). |
@@ -247,6 +248,11 @@ live in toate dashboard-urile deschise. **Renunta** revine la tema salvata, iar
 - **Rotita din dreapta sus:** deschide pagina integrarii pentru editare completa.
 
 ### Modelul 3D
+
+Fara model incarcat, cardul deseneaza o masina pe tipul de caroserie potrivit (sedan,
+hatchback, break, SUV sau coupe, ghicit din marca si model sau ales cu `body_type`), in
+culoarea vehiculului. Scena se opreste singura cand cardul nu e pe ecran, cand aplicatia e
+in fundal sau cand nu se roteste, ca sa nu consume baterie.
 
 Fara model incarcat, cardul deseneaza procedural o masina stilizata, vopsita in culoarea
 configurata a vehiculului (`Rosu`, `Albastru metalizat`, `#1f5fbf`... sunt toate acceptate).

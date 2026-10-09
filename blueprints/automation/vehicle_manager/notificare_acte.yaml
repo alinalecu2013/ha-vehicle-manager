@@ -1,65 +1,65 @@
 blueprint:
-  name: "Vehicle Manager: notificari pentru acte"
+  name: "Vehicle Manager: notificări pentru acte"
   description: >
-    Trimite pe telefon o notificare cand un act (RCA, ITP, rovinieta, CASCO,
-    revizie, distributie, trusa medicala, extinctor, impozit auto, schimb de
-    anvelope) se apropie de scadenta. Notificarea are un buton care reinnoieste
-    actul direct din telefon: actele se prelungesc cu numarul de luni ales,
-    schimbul de anvelope cu 6 luni, iar revizia si distributia se marcheaza ca
-    facute (urmatoarea scadenta se calculeaza automat).
+    Trimite pe telefon o notificare când un act (RCA, ITP, rovinietă, CASCO,
+    revizie, distribuție, trusă medicală, extinctor, impozit auto, schimb de
+    anvelope) se apropie de scadență. Notificarea are un buton care reînnoiește
+    actul direct din telefon: actele se prelungesc cu numărul de luni ales,
+    schimbul de anvelope cu 6 luni, iar revizia și distribuția se marchează ca
+    făcute (următoarea scadență se calculează automat).
   domain: automation
   source_url: https://github.com/alinalecu2013/ha-vehicle-manager/blob/main/blueprints/automation/vehicle_manager/notificare_acte.yaml
   input:
     vehicles:
       name: Vehicule
-      description: Vehiculele urmarite.
+      description: Vehiculele urmărite.
       selector:
         device:
           integration: vehicle_manager
           multiple: true
     notify_device:
       name: Telefon
-      description: Telefonul (aplicatia Home Assistant Companion) care primeste notificarile.
+      description: Telefonul (aplicația Home Assistant Companion) care primește notificările.
       selector:
         device:
           integration: mobile_app
     days_before:
-      name: Cand se trimite
-      description: Cu cate zile inainte de scadenta (0 = in ziua scadentei).
+      name: Când se trimite
+      description: Cu câte zile înainte de scadență (0 = în ziua scadenței).
       default: ["30", "7", "1", "0"]
       selector:
         select:
           multiple: true
           custom_value: true
           options:
-            - label: Cu 60 de zile inainte
+            - label: Cu 60 de zile înainte
               value: "60"
-            - label: Cu 30 de zile inainte
+            - label: Cu 30 de zile înainte
               value: "30"
-            - label: Cu 14 zile inainte
+            - label: Cu 14 zile înainte
               value: "14"
-            - label: Cu 7 zile inainte
+            - label: Cu 7 zile înainte
               value: "7"
-            - label: Cu 3 zile inainte
+            - label: Cu 3 zile înainte
               value: "3"
-            - label: Cu o zi inainte
+            - label: Cu o zi înainte
               value: "1"
-            - label: In ziua scadentei
+            - label: În ziua scadenței
               value: "0"
     repeat_expired:
-      name: Aminteste zilnic actele expirate
-      description: Trimite cate o notificare in fiecare zi cat timp un act e expirat.
+      name: Amintește zilnic actele expirate
+      description: Trimite câte o notificare în fiecare zi cât timp un act e expirat.
       default: true
       selector:
         boolean:
     notify_time:
-      name: Ora notificarii
+      name: Ora notificării
       default: "09:00:00"
       selector:
         time:
     renew_months:
-      name: Prelungire acte (RCA, ITP, rovinieta, CASCO...)
-      description: Cu cate luni se prelungeste actul cand apesi butonul din notificare.
+      name: Prelungire acte (RCA, ITP, rovinietă, CASCO...)
+      description: Cu câte luni se prelungește actul când apeși butonul din notificare.
       default: 12
       selector:
         number:
@@ -69,7 +69,7 @@ blueprint:
           mode: box
     service_interval:
       name: Interval revizie
-      description: Dupa "Am facut-o", urmatoarea revizie e peste atatia km (sau luni, ce vine prima).
+      description: După "Am făcut-o", următoarea revizie e peste atâția km (sau luni, ce vine prima).
       default: 15000
       selector:
         number:
@@ -88,8 +88,8 @@ blueprint:
           unit_of_measurement: luni
           mode: box
     timing_interval:
-      name: Interval distributie
-      description: Verifica in cartea service-ului; de obicei 60.000 - 120.000 km.
+      name: Interval distribuție
+      description: Verifică în cartea service-ului; de obicei 60.000 - 120.000 km.
       default: 90000
       selector:
         number:
@@ -99,7 +99,7 @@ blueprint:
           unit_of_measurement: km
           mode: box
     timing_months:
-      name: Interval distributie (luni)
+      name: Interval distribuție (luni)
       default: 60
       selector:
         number:
@@ -108,8 +108,8 @@ blueprint:
           unit_of_measurement: luni
           mode: box
     open_path:
-      name: Pagina deschisa la atingerea notificarii
-      description: Ex. /lovelace/masini. Lasa gol pentru pagina principala.
+      name: Pagina deschisă la atingerea notificării
+      description: Ex. /lovelace/mașini. Lasă gol pentru pagina principală.
       default: ""
       selector:
         text:
@@ -135,8 +135,8 @@ variables:
   timing_interval: !input timing_interval
   timing_months: !input timing_months
   open_path: !input open_path
-  # Prefixul butoanelor include automatizarea, ca un buton sa fie tratat doar de
-  # automatizarea care a trimis notificarea (pot exista mai multe, ex. 2 telefoane).
+  # Prefixul butoanelor include automatizarea, ca un buton să fie tratat doar de
+  # automatizarea care a trimis notificarea (pot există mai multe, ex. 2 telefoane).
   action_prefix: "VM_RENEW|{{ this.entity_id }}|"
   vehicle_entities: >
     {% set ns = namespace(items=[]) %}
@@ -184,9 +184,9 @@ actions:
                     {% set d = repeat.item.days %}
                     {% set data = (repeat.item.date | as_datetime).strftime('%d.%m.%Y')
                                   if repeat.item.date else '' %}
-                    {% if d > 1 %}Expira in {{ d }} zile ({{ data }}).
-                    {% elif d == 1 %}Expira maine ({{ data }}).
-                    {% elif d == 0 %}Expira azi.
+                    {% if d > 1 %}Expiră în {{ d }} zile ({{ data }}).
+                    {% elif d == 1 %}Expiră mâine ({{ data }}).
+                    {% elif d == 0 %}Expiră azi.
                     {% else %}Expirat de {{ -d }} {{ 'zi' if d == -1 else 'zile' }} ({{ data }}).
                     {% endif %}
                   data:
@@ -196,9 +196,9 @@ actions:
                     actions:
                       - action: "{{ action_prefix ~ repeat.item.entity }}"
                         title: >
-                          {% if repeat.item.key in ['revizie', 'distributie'] %}Am facut-o
+                          {% if repeat.item.key in ['revizie', 'distributie'] %}Am făcut-o
                           {% elif repeat.item.key == 'anvelope' %}Am schimbat (+6 luni)
-                          {% else %}Am reinnoit (+{{ renew_months }} luni){% endif %}
+                          {% else %}Am reînnoit (+{{ renew_months }} luni){% endif %}
 
       # ------------------------------------------------- butonul din notificare
       - conditions:
@@ -232,7 +232,7 @@ actions:
                   entity_id: "{{ entity }}"
                 data:
                   document: "{{ key }}"
-                  # anvelopele se schimba sezonier, deci urmatorul schimb e peste 6 luni
+                  # anvelopele se schimba sezonier, deci următorul schimb e peste 6 luni
                   months: "{{ 6 if key == 'anvelope' else renew_months | int }}"
           - device_id: !input notify_device
             domain: mobile_app

@@ -121,7 +121,7 @@ class ParkingTracker:
             position = position_of(self.hass.states.get(tracker))
             if position is None:
                 _LOGGER.warning(
-                    "%s: deconectat de la masina, dar %s nu are pozitie GPS",
+                    "%s: deconectat de la mașină, dar %s nu are poziție GPS",
                     self.coordinator.vehicle_name,
                     tracker,
                 )

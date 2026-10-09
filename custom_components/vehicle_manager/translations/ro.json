@@ -2,63 +2,63 @@
   "title": "Vehicle Manager",
   "config": {
     "abort": {
-      "already_configured": "Exista deja un vehicul cu acest numar de inmatriculare."
+      "already_configured": "Există deja un vehicul cu acest număr de înmatriculare."
     },
     "step": {
       "user": {
         "title": "Vehicul nou",
-        "description": "Completeaza caracteristicile vehiculului. Numarul de inmatriculare trebuie sa fie unic.",
+        "description": "Completează caracteristicile vehiculului. Numărul de înmatriculare trebuie să fie unic.",
         "data": {
           "name": "Nume vehicul",
           "make": "Marca",
           "model": "Model",
-          "license_plate": "Numar de inmatriculare",
-          "year": "An fabricatie",
-          "mileage": "Numar de kilometri",
+          "license_plate": "Număr de înmatriculare",
+          "year": "An fabricație",
+          "mileage": "Număr de kilometri",
           "color": "Culoare",
           "engine_capacity": "Capacitate motor",
           "fuel_type": "Combustibil folosit",
-          "vin": "Serie de sasiu (VIN)"
+          "vin": "Serie de șasiu (VIN)"
         },
         "data_description": {
-          "name": "Asa va aparea vehiculul in Home Assistant si in meniul cardului.",
-          "color": "Numele culorii (ex. Rosu, Albastru metalizat) sau un cod hex. Este folosita si pentru modelul 3D."
+          "name": "Așa va apărea vehiculul în Home Assistant și în meniul cardului.",
+          "color": "Numele culorii (ex. Roșu, Albastru metalizat) sau un cod hex. Este folosită și pentru modelul 3D."
         }
       },
       "documents": {
-        "title": "Acte si scadente",
-        "description": "Completeaza datele de expirare. Poti lasa gol ce nu cunosti acum si completa mai tarziu direct din interfata.",
+        "title": "Acte și scadențe",
+        "description": "Completează datele de expirare. Poți lasă gol ce nu cunoști acum și completa mai târziu direct din interfața.",
         "data": {
-          "rca_date": "RCA expira la",
-          "itp_date": "ITP expira la",
-          "rovinieta_date": "Rovinieta expira la",
-          "revizie_date": "Revizie scadenta la data",
-          "revizie_km": "Revizie scadenta la km",
-          "distributie_date": "Distributie scadenta la data",
-          "distributie_km": "Distributie scadenta la km",
-          "casco_date": "CASCO expira la",
-          "trusa_medicala_date": "Trusa medicala expira la",
+          "rca_date": "RCA expiră la",
+          "itp_date": "ITP expiră la",
+          "rovinieta_date": "Rovinietă expiră la",
+          "revizie_date": "Revizie scadență la data",
+          "revizie_km": "Revizie scadență la km",
+          "distributie_date": "Distribuție scadență la data",
+          "distributie_km": "Distribuție scadență la km",
+          "casco_date": "CASCO expiră la",
+          "trusa_medicala_date": "Trusă medicală expiră la",
           "extinctor_date": "Extinctorul trebuie verificat la",
           "impozit_date": "Impozitul auto e scadent la",
-          "anvelope_date": "Urmatorul schimb de anvelope (iarna/vara) la"
+          "anvelope_date": "Următorul schimb de anvelope (iarna/vara) la"
         },
         "data_description": {
-          "revizie_km": "Kilometrajul la care devine scadenta revizia (valoare absoluta a odometrului).",
-          "distributie_km": "Kilometrajul la care trebuie schimbata distributia (valoare absoluta a odometrului)."
+          "revizie_km": "Kilometrajul la care devine scadență revizia (valoare absolută a odometrului).",
+          "distributie_km": "Kilometrajul la care trebuie schimbată distribuția (valoare absolută a odometrului)."
         }
       },
       "media": {
-        "title": "Poza si model 3D",
-        "description": "Incarca o poza a masinii. Opțional poti incarca si un model 3D (.glb sau .gltf) care va fi afisat rotativ in card; daca nu incarci niciunul, cardul deseneaza o masina stilizata in culoarea vehiculului.",
+        "title": "Poza și model 3D",
+        "description": "Încarcă o poză a mașinii. Opțional, poți încărca și un model 3D (.glb sau .gltf) care va fi afișat rotativ în card; dacă nu încarci niciunul, cardul desenează o mașină stilizată în culoarea vehiculului.",
         "data": {
-          "photo_upload": "Incarca poza",
-          "model_3d_upload": "Incarca model 3D (.glb)",
+          "photo_upload": "Încarcă poza",
+          "model_3d_upload": "Încarcă model 3D (.glb)",
           "photo": "sau URL poza",
           "model_3d": "sau URL model 3D"
         },
         "data_description": {
-          "photo": "Lasa gol daca ai incarcat un fisier. Accepta si cai /local/....",
-          "model_3d": "Lasa gol daca ai incarcat un fisier. Accepta si cai /local/...."
+          "photo": "Lasă gol dacă ai încărcat un fișier. Acceptă și căi /local/....",
+          "model_3d": "Lasă gol dacă ai încărcat un fișier. Acceptă și căi /local/...."
         }
       }
     }
@@ -66,11 +66,11 @@
   "options": {
     "step": {
       "init": {
-        "title": "Editeaza vehiculul",
+        "title": "Editează vehiculul",
         "menu_options": {
           "vehicle": "Caracteristici vehicul",
-          "documents": "Acte si scadente",
-          "media": "Poza si model 3D",
+          "documents": "Acte și scadențe",
+          "media": "Poza și model 3D",
           "thresholds": "Praguri de avertizare",
           "mileage_source": "Kilometraj automat",
           "parking": "Unde am parcat"
@@ -82,76 +82,76 @@
           "name": "Nume vehicul",
           "make": "Marca",
           "model": "Model",
-          "license_plate": "Numar de inmatriculare",
-          "year": "An fabricatie",
-          "mileage": "Numar de kilometri",
+          "license_plate": "Număr de înmatriculare",
+          "year": "An fabricație",
+          "mileage": "Număr de kilometri",
           "color": "Culoare",
           "engine_capacity": "Capacitate motor",
           "fuel_type": "Combustibil folosit",
-          "vin": "Serie de sasiu (VIN)"
+          "vin": "Serie de șasiu (VIN)"
         }
       },
       "documents": {
-        "title": "Acte si scadente",
+        "title": "Acte și scadențe",
         "data": {
-          "rca_date": "RCA expira la",
-          "itp_date": "ITP expira la",
-          "rovinieta_date": "Rovinieta expira la",
-          "revizie_date": "Revizie scadenta la data",
-          "revizie_km": "Revizie scadenta la km",
-          "distributie_date": "Distributie scadenta la data",
-          "distributie_km": "Distributie scadenta la km",
-          "casco_date": "CASCO expira la",
-          "trusa_medicala_date": "Trusa medicala expira la",
+          "rca_date": "RCA expiră la",
+          "itp_date": "ITP expiră la",
+          "rovinieta_date": "Rovinietă expiră la",
+          "revizie_date": "Revizie scadență la data",
+          "revizie_km": "Revizie scadență la km",
+          "distributie_date": "Distribuție scadență la data",
+          "distributie_km": "Distribuție scadență la km",
+          "casco_date": "CASCO expiră la",
+          "trusa_medicala_date": "Trusă medicală expiră la",
           "extinctor_date": "Extinctorul trebuie verificat la",
           "impozit_date": "Impozitul auto e scadent la",
-          "anvelope_date": "Urmatorul schimb de anvelope (iarna/vara) la"
+          "anvelope_date": "Următorul schimb de anvelope (iarna/vara) la"
         }
       },
       "media": {
-        "title": "Poza si model 3D",
-        "description": "Poza actuala: {photo}\nModel 3D actual: {model_3d}\n\nIncarca un fisier nou pentru a inlocui, sau goleste campul URL pentru a elimina.",
+        "title": "Poza și model 3D",
+        "description": "Poza actuală: {photo}\nModel 3D actual: {model_3d}\n\nÎncarcă un fișier nou pentru a înlocui, sau golește câmpul URL pentru a elimină.",
         "data": {
-          "photo_upload": "Incarca poza",
-          "model_3d_upload": "Incarca model 3D (.glb)",
+          "photo_upload": "Încarcă poza",
+          "model_3d_upload": "Încarcă model 3D (.glb)",
           "photo": "URL poza",
           "model_3d": "URL model 3D"
         }
       },
       "mileage_source": {
         "title": "Kilometraj automat",
-        "description": "Alege un senzor care raporteaza kilometrajul (adaptor OBD, aplicatia producatorului, Android Auto...). Kilometrajul vehiculului se actualizeaza apoi automat. Se aplica doar cresterile, deci o citire gresita nu il poate scadea; milele si metrii se convertesc in km. Goleste campul ca sa revii la kilometrajul manual.",
+        "description": "Alege un senzor care raportează kilometrajul (adaptor OBD, aplicația producătorului, Android Auto...). Kilometrajul vehiculului se actualizează apoi automat. Se aplică doar creșterile, deci o citire greșită nu îl poate scădea; milele și metrii se convertesc în km. Golește câmpul ca să revii la kilometrajul manual.",
         "data": { "mileage_source": "Senzor kilometraj" }
       },
       "parking": {
         "title": "Unde am parcat",
-        "description": "Cand telefonul se deconecteaza de la Bluetooth-ul masinii, pozitia GPS a telefonului se salveaza ca loc de parcare (pe harta si in card). Alege localizarea telefonului si senzorul lui de conexiune Bluetooth (ambele din aplicatia Home Assistant Companion) si scrie numele sau adresa Bluetooth a masinii, asa cum apare in atributul connected_paired_devices al senzorului. Goleste toate campurile ca sa opresti functia.",
+        "description": "Când telefonul se deconectează de la Bluetooth-ul mașinii, poziția GPS a telefonului se salvează ca loc de parcare (pe harta și în card). Alege localizarea telefonului și senzorul lui de conexiune Bluetooth (ambele din aplicația Home Assistant Companion) și scrie numele sau adresa Bluetooth a mașinii, așa cum apare în atributul connected_paired_devices al senzorului. Golește toate câmpurile ca să oprești funcția.",
         "data": {
           "parking_tracker": "Localizarea telefonului (device tracker)",
           "parking_bt_sensor": "Senzorul de conexiune Bluetooth al telefonului",
-          "parking_bt_device": "Numele sau adresa Bluetooth a masinii"
+          "parking_bt_device": "Numele sau adresa Bluetooth a mașinii"
         }
       },
       "thresholds": {
         "title": "Praguri de avertizare",
         "data": {
-          "warn_days": "Avertizare cu cate zile inainte",
-          "warn_km": "Avertizare cu cati km inainte"
+          "warn_days": "Avertizare cu câte zile înainte",
+          "warn_km": "Avertizare cu câți km înainte"
         }
       }
     },
     "error": {
-      "not_numeric": "Entitatea aleasa nu raporteaza un numar in km, mi sau m.",
-      "parking_incomplete": "Completeaza toate cele trei campuri sau goleste-le pe toate ca sa opresti functia."
+      "not_numeric": "Entitatea aleasă nu raportează un număr în km, mi sau m.",
+      "parking_incomplete": "Completează toate cele trei câmpuri sau golește-le pe toate ca să oprești funcția."
     }
   },
   "selector": {
     "fuel_type": {
       "options": {
-        "benzina": "Benzina",
+        "benzina": "Benzină",
         "diesel": "Diesel",
         "gpl": "GPL",
-        "benzina_gpl": "Benzina + GPL",
+        "benzina_gpl": "Benzină + GPL",
         "hibrid": "Hibrid",
         "hibrid_plugin": "Hibrid plug-in",
         "electric": "Electric",
@@ -162,11 +162,11 @@
       "options": {
         "rca": "RCA",
         "itp": "ITP",
-        "rovinieta": "Rovinieta",
+        "rovinieta": "Rovinietă",
         "revizie": "Revizie",
-        "distributie": "Distributie",
+        "distributie": "Distribuție",
         "casco": "CASCO",
-        "trusa_medicala": "Trusa medicala",
+        "trusa_medicala": "Trusă medicală",
         "extinctor": "Extinctor",
         "impozit": "Impozit auto",
         "anvelope": "Schimb anvelope"
@@ -176,17 +176,17 @@
       "options": {
         "rca": "RCA",
         "itp": "ITP",
-        "rovinieta": "Rovinieta",
+        "rovinieta": "Rovinietă",
         "casco": "CASCO",
         "revizie": "Revizie",
-        "distributie": "Distributie",
-        "reparatii": "Reparatii",
+        "distributie": "Distribuție",
+        "reparatii": "Reparații",
         "anvelope": "Anvelope",
         "combustibil": "Combustibil",
-        "spalare": "Spalare",
+        "spalare": "Spălare",
         "parcare": "Parcare",
         "amenzi": "Amenzi",
-        "taxe": "Taxe si impozit",
+        "taxe": "Taxe și impozit",
         "accesorii": "Accesorii",
         "altele": "Altele"
       }
@@ -197,22 +197,22 @@
       "status": { "name": "Stare acte" },
       "rca_days": { "name": "RCA" },
       "itp_days": { "name": "ITP" },
-      "rovinieta_days": { "name": "Rovinieta" },
+      "rovinieta_days": { "name": "Rovinietă" },
       "revizie_days": { "name": "Revizie" },
-      "distributie_days": { "name": "Distributie" },
+      "distributie_days": { "name": "Distribuție" },
       "casco_days": { "name": "CASCO" },
-      "trusa_medicala_days": { "name": "Trusa medicala" },
+      "trusa_medicala_days": { "name": "Trusă medicală" },
       "extinctor_days": { "name": "Extinctor" },
       "impozit_days": { "name": "Impozit auto" },
       "anvelope_days": { "name": "Schimb anvelope" },
       "make": { "name": "Marca" },
       "model": { "name": "Model" },
-      "year": { "name": "An fabricatie" },
+      "year": { "name": "An fabricație" },
       "color": { "name": "Culoare" },
       "engine_capacity": { "name": "Capacitate motor" },
       "fuel_type": { "name": "Combustibil" },
-      "license_plate": { "name": "Numar de inmatriculare" },
-      "vin": { "name": "Serie de sasiu" },
+      "license_plate": { "name": "Număr de înmatriculare" },
+      "vin": { "name": "Serie de șasiu" },
       "expenses_year": { "name": "Cheltuieli anul curent" },
       "expenses_total": { "name": "Cheltuieli totale" },
       "fuel_consumption": { "name": "Consum mediu" }
@@ -224,119 +224,119 @@
     "number": {
       "mileage": { "name": "Kilometraj" },
       "revizie_km": { "name": "Revizie la km" },
-      "distributie_km": { "name": "Distributie la km" }
+      "distributie_km": { "name": "Distribuție la km" }
     },
     "date": {
       "rca_date": { "name": "Expirare RCA" },
       "itp_date": { "name": "Expirare ITP" },
-      "rovinieta_date": { "name": "Expirare rovinieta" },
-      "revizie_date": { "name": "Scadenta revizie" },
-      "distributie_date": { "name": "Scadenta distributie" },
+      "rovinieta_date": { "name": "Expirare rovinietă" },
+      "revizie_date": { "name": "Scadență revizie" },
+      "distributie_date": { "name": "Scadență distribuție" },
       "casco_date": { "name": "Expirare CASCO" },
-      "trusa_medicala_date": { "name": "Expirare trusa medicala" },
+      "trusa_medicala_date": { "name": "Expirare trusă medicală" },
       "extinctor_date": { "name": "Expirare extinctor" },
-      "impozit_date": { "name": "Scadenta impozit auto" },
+      "impozit_date": { "name": "Scadență impozit auto" },
       "anvelope_date": { "name": "Data schimb anvelope" }
     },
     "image": {
       "photo": { "name": "Poza" }
     },
     "calendar": {
-      "deadlines": { "name": "Scadente" }
+      "deadlines": { "name": "Scadențe" }
     },
     "device_tracker": {
-      "parking_location": { "name": "Locatie parcare" }
+      "parking_location": { "name": "Locație parcare" }
     }
   },
   "services": {
     "set_mileage": {
-      "name": "Seteaza kilometrajul",
-      "description": "Actualizeaza numarul de kilometri al vehiculului.",
+      "name": "Setează kilometrajul",
+      "description": "Actualizează numărul de kilometri al vehiculului.",
       "fields": {
         "mileage": {
           "name": "Kilometraj",
-          "description": "Valoarea curenta a odometrului."
+          "description": "Valoarea curentă a odometrului."
         }
       }
     },
     "set_document": {
-      "name": "Seteaza un act",
-      "description": "Seteaza data de expirare si/sau kilometrajul scadent pentru un act.",
+      "name": "Setează un act",
+      "description": "Setează data de expirare și/sau kilometrajul scadent pentru un act.",
       "fields": {
-        "document": { "name": "Act", "description": "Actul care se modifica." },
-        "date": { "name": "Data", "description": "Noua data de expirare." },
+        "document": { "name": "Act", "description": "Actul care se modifică." },
+        "date": { "name": "Data", "description": "Nouă data de expirare." },
         "km": {
           "name": "Kilometraj scadent",
-          "description": "Doar pentru revizie si distributie."
+          "description": "Doar pentru revizie și distribuție."
         }
       }
     },
     "renew_document": {
-      "name": "Reinnoieste un act",
-      "description": "Prelungeste un act cu un numar de luni, pornind de la scadenta actuala daca este in viitor, altfel de la ziua de azi.",
+      "name": "Reînnoiește un act",
+      "description": "Prelungește un act cu un număr de luni, pornind de la scadență actuală dacă este în viitor, altfel de la ziua de azi.",
       "fields": {
-        "document": { "name": "Act", "description": "Actul reinnoit." },
+        "document": { "name": "Act", "description": "Actul reînnoit." },
         "months": {
           "name": "Luni",
-          "description": "Cu cate luni se prelungeste valabilitatea."
+          "description": "Cu câte luni se prelungește valabilitatea."
         },
         "interval_km": {
           "name": "Interval km",
-          "description": "Doar pentru revizie si distributie: se adauga la kilometrajul curent."
+          "description": "Doar pentru revizie și distribuție: se adaugă la kilometrajul curent."
         },
-        "cost": { "name": "Cost", "description": "Optional: inregistreaza si suma platita in istoricul cheltuielilor." }
+        "cost": { "name": "Cost", "description": "Opțional: înregistrează și suma plătită în istoricul cheltuielilor." }
       }
     },
     "mark_service_done": {
-      "name": "Marcheaza lucrarea ca efectuata",
-      "description": "Inregistreaza o revizie sau o schimbare de distributie si calculeaza automat urmatoarea scadenta.",
+      "name": "Marchează lucrarea ca efectuată",
+      "description": "Înregistrează o revizie sau o schimbare de distribuție și calculează automat următoarea scadență.",
       "fields": {
         "document": {
           "name": "Lucrare",
-          "description": "Revizie sau distributie."
+          "description": "Revizie sau distribuție."
         },
         "mileage": {
           "name": "Kilometraj la efectuare",
-          "description": "Daca lipseste, se foloseste kilometrajul curent."
+          "description": "Dacă lipsește, se folosește kilometrajul curent."
         },
         "interval_months": {
           "name": "Interval luni",
-          "description": "Peste cate luni este urmatoarea scadenta."
+          "description": "Peste câte luni este următoarea scadență."
         },
         "interval_km": {
           "name": "Interval km",
-          "description": "Peste cati km este urmatoarea scadenta."
+          "description": "Peste câți km este următoarea scadență."
         },
-        "cost": { "name": "Cost", "description": "Optional: inregistreaza si suma platita in istoricul cheltuielilor." }
+        "cost": { "name": "Cost", "description": "Opțional: înregistrează și suma plătită în istoricul cheltuielilor." }
       }
     },
     "add_expense": {
-      "name": "Adauga cheltuiala",
-      "description": "Inregistreaza o cheltuiala in istoricul costurilor vehiculului.",
+      "name": "Adaugă cheltuiala",
+      "description": "Înregistrează o cheltuiala în istoricul costurilor vehiculului.",
       "fields": {
         "category": { "name": "Categorie", "description": "Tipul cheltuielii." },
-        "amount": { "name": "Suma", "description": "Suma platita, in moneda setata in Home Assistant." },
-        "date": { "name": "Data", "description": "Cand a fost platita. Implicit azi." },
-        "mileage": { "name": "Kilometraj", "description": "Optional: kilometrajul din acel moment." },
-        "note": { "name": "Nota", "description": "Optional: detalii, ex. service-ul sau piesele schimbate." },
-        "quantity": { "name": "Cantitate", "description": "Doar pentru combustibil: litrii (sau kWh pentru masini electrice) alimentati." },
-        "full_tank": { "name": "Plin complet", "description": "Doar pentru combustibil: s-a facut plinul. Necesar pentru calculul consumului." }
+        "amount": { "name": "Suma", "description": "Suma plătită, în moneda setată în Home Assistant." },
+        "date": { "name": "Data", "description": "Când a fost plătită. Implicit azi." },
+        "mileage": { "name": "Kilometraj", "description": "Opțional: kilometrajul din acel moment." },
+        "note": { "name": "Notă", "description": "Opțional: detalii, ex. service-ul sau piesele schimbate." },
+        "quantity": { "name": "Cantitate", "description": "Doar pentru combustibil: litrii (sau kWh pentru mașini electrice) alimentați." },
+        "full_tank": { "name": "Plin complet", "description": "Doar pentru combustibil: s-a făcut plinul. Necesar pentru calculul consumului." }
       }
     },
     "delete_expense": {
-      "name": "Sterge cheltuiala",
-      "description": "Sterge o cheltuiala din istoricul costurilor.",
+      "name": "Șterge cheltuiala",
+      "description": "Șterge o cheltuiala din istoricul costurilor.",
       "fields": {
-        "expense_id": { "name": "Id cheltuiala", "description": "Id-ul afisat in card sau primit la adaugare." }
+        "expense_id": { "name": "Id cheltuiala", "description": "Id-ul afișat în card sau primit la adăugare." }
       }
     },
     "set_parking": {
-      "name": "Seteaza locul de parcare",
-      "description": "Salveaza unde e parcat vehiculul: din pozitia unei entitati (telefon, persoana, zona) sau din coordonate.",
+      "name": "Setează locul de parcare",
+      "description": "Salvează unde e parcat vehiculul: din poziția unei entități (telefon, persoană, zonă) sau din coordonate.",
       "fields": {
-        "source": { "name": "Pozitia de la", "description": "Un device tracker, o persoana sau o zona a carei pozitie curenta se foloseste." },
-        "latitude": { "name": "Latitudine", "description": "Folosita daca nu alegi o entitate." },
-        "longitude": { "name": "Longitudine", "description": "Folosita daca nu alegi o entitate." }
+        "source": { "name": "Poziția de la", "description": "Un device tracker, o persoană sau o zonă a cărei poziție curentă se folosește." },
+        "latitude": { "name": "Latitudine", "description": "Folosită dacă nu alegi o entitate." },
+        "longitude": { "name": "Longitudine", "description": "Folosită dacă nu alegi o entitate." }
       }
     }
   }

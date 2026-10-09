@@ -147,18 +147,18 @@ class ThemeBackgroundView(HomeAssistantView):
         while field is not None and field.name != "file":
             field = await reader.next()
         if field is None:
-            return self.json_message("Lipseste fisierul.", 400)
+            return self.json_message("Lipsește fișierul.", 400)
 
         data = bytearray()
         while chunk := await field.read_chunk():
             data.extend(chunk)
             if len(data) > BG_MAX_BYTES:
-                return self.json_message("Imaginea depaseste 15 MB.", 413)
+                return self.json_message("Imaginea depășește 15 MB.", 413)
 
         extension = _image_extension(bytes(data[:16]))
         if extension is None:
             return self.json_message(
-                "Format neacceptat. Foloseste JPG, PNG, WebP sau GIF.", 415
+                "Format neacceptat. Folosește JPG, PNG, WebP sau GIF.", 415
             )
 
         filename = f"{BG_FILE_PREFIX}{secrets.token_hex(6)}{extension}"

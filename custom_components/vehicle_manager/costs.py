@@ -405,6 +405,6 @@ async def ws_delete_expense(
 ) -> None:
     """Sterge o cheltuiala din card."""
     if not await get_cost_manager(hass).async_delete(msg["expense_id"]):
-        connection.send_error(msg["id"], "not_found", "Cheltuiala nu exista")
+        connection.send_error(msg["id"], "not_found", "Cheltuiala nu există")
         return
     connection.send_result(msg["id"])

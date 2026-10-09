@@ -154,7 +154,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
             try:
                 item.unlink()
             except OSError as err:  # pragma: no cover - depinde de FS
-                _LOGGER.warning("Nu am putut sterge %s: %s", item, err)
+                _LOGGER.warning("Nu am putut șterge %s: %s", item, err)
 
     await hass.async_add_executor_job(_cleanup)
 
@@ -208,7 +208,7 @@ async def _async_register_frontend(hass: HomeAssistant) -> None:
     hacs_card = Path(hass.config.path("www", "community", HACS_CARD_REPO))
     if await hass.async_add_executor_job(hacs_card.is_dir):
         _LOGGER.info(
-            "Cardul este instalat din HACS (%s); copia inclusa in integrare nu se incarca",
+            "Cardul este instalat din HACS (%s); copia inclusă în integrare nu se încarcă",
             hacs_card,
         )
         domain_data[DATA_FRONTEND] = True
@@ -224,7 +224,7 @@ async def _async_register_frontend(hass: HomeAssistant) -> None:
         add_extra_js_url(hass, f"{URL_BASE}/{CARD_FILENAME}?v={VERSION}-{mtime}")
     except Exception as err:  # pragma: no cover - depinde de versiunea HA
         _LOGGER.warning(
-            "Nu am putut inregistra automat cardul; adauga-l manual ca resursa "
+            "Nu am putut înregistra automat cardul; adaugă-l manual ca resursa "
             "Lovelace de tip module la %s/%s (%s)",
             URL_BASE,
             CARD_FILENAME,
@@ -336,7 +336,7 @@ def _resolve_coordinators(
 
     if not entry_ids:
         raise ServiceValidationError(
-            "Nu am gasit niciun vehicul Vehicle Manager pentru tinta aleasa."
+            "Nu am găsit niciun vehicul Vehicle Manager pentru ținta aleasă."
         )
 
     return [coordinators[entry_id] for entry_id in entry_ids]
@@ -442,7 +442,7 @@ def _async_register_services(hass: HomeAssistant) -> None:
 
     async def _delete_expense(call: ServiceCall) -> None:
         if not await get_cost_manager(hass).async_delete(call.data[ATTR_EXPENSE_ID]):
-            raise ServiceValidationError("Cheltuiala cu acest id nu exista.")
+            raise ServiceValidationError("Cheltuiala cu acest id nu există.")
 
     hass.services.async_register(
         DOMAIN, SERVICE_SET_MILEAGE, _set_mileage, schema=SET_MILEAGE_SCHEMA

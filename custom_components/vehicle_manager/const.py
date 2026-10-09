@@ -6,7 +6,7 @@ from datetime import timedelta
 from typing import Final
 
 DOMAIN: Final = "vehicle_manager"
-VERSION: Final = "2.1.0"
+VERSION: Final = "2.2.0"
 
 PLATFORMS: Final = [
     "sensor",
@@ -84,7 +84,7 @@ DOCUMENTS: Final[dict[str, dict]] = {
         "horizon": 730,
     },
     DOC_ROVINIETA: {
-        "label": "Rovinieta",
+        "label": "Rovinietă",
         "icon": "mdi:road-variant",
         "uses_km": False,
         "horizon": 365,
@@ -96,7 +96,7 @@ DOCUMENTS: Final[dict[str, dict]] = {
         "horizon": 365,
     },
     DOC_DISTRIBUTIE: {
-        "label": "Distributie",
+        "label": "Distribuție",
         "icon": "mdi:cog-sync",
         "uses_km": True,
         "horizon": 1825,
@@ -109,7 +109,7 @@ DOCUMENTS: Final[dict[str, dict]] = {
         "horizon": 365,
     },
     DOC_TRUSA: {
-        "label": "Trusa medicala",
+        "label": "Trusă medicală",
         "icon": "mdi:medical-bag",
         "uses_km": False,
         "horizon": 1095,
@@ -158,10 +158,10 @@ FUEL_TYPES: Final = [
 ]
 
 FUEL_LABELS: Final = {
-    "benzina": "Benzina",
+    "benzina": "Benzină",
     "diesel": "Diesel",
     "gpl": "GPL",
-    "benzina_gpl": "Benzina + GPL",
+    "benzina_gpl": "Benzină + GPL",
     "hibrid": "Hibrid",
     "hibrid_plugin": "Hibrid plug-in",
     "electric": "Electric",
@@ -261,17 +261,17 @@ FUEL_CATEGORY: Final = "combustibil"
 EXPENSE_CATEGORIES: Final[dict[str, tuple[str, str]]] = {
     "rca": ("RCA", "mdi:shield-car"),
     "itp": ("ITP", "mdi:car-wrench"),
-    "rovinieta": ("Rovinieta", "mdi:road-variant"),
+    "rovinieta": ("Rovinietă", "mdi:road-variant"),
     "casco": ("CASCO", "mdi:shield-star"),
     "revizie": ("Revizie", "mdi:oil"),
-    "distributie": ("Distributie", "mdi:cog-sync"),
-    "reparatii": ("Reparatii", "mdi:wrench"),
+    "distributie": ("Distribuție", "mdi:cog-sync"),
+    "reparatii": ("Reparații", "mdi:wrench"),
     "anvelope": ("Anvelope", "mdi:tire"),
     "combustibil": ("Combustibil", "mdi:gas-station"),
-    "spalare": ("Spalare", "mdi:car-wash"),
+    "spalare": ("Spălare", "mdi:car-wash"),
     "parcare": ("Parcare", "mdi:parking"),
     "amenzi": ("Amenzi", "mdi:file-document-alert"),
-    "taxe": ("Taxe si impozit", "mdi:bank"),
+    "taxe": ("Taxe și impozit", "mdi:bank"),
     "accesorii": ("Accesorii", "mdi:car-seat"),
     "altele": ("Altele", "mdi:dots-horizontal"),
 }

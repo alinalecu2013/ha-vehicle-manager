@@ -190,17 +190,17 @@ class VehicleFilesView(HomeAssistantView):
         while field is not None and field.name != "file":
             field = await reader.next()
         if field is None:
-            return self.json_message("Lipseste fisierul.", 400)
+            return self.json_message("Lipsește fișierul.", 400)
 
         content = bytearray()
         while chunk := await field.read_chunk():
             content.extend(chunk)
             if len(content) > MAX_BYTES:
-                return self.json_message("Fisierul depaseste 20 MB.", 413)
+                return self.json_message("Fișierul depășește 20 MB.", 413)
 
         detected = detect_type(bytes(content[:16]))
         if detected is None:
-            return self.json_message("Format neacceptat. Foloseste o poza (JPG, PNG, WebP) sau PDF.", 415)
+            return self.json_message("Format neacceptat. Folosește o poză (JPG, PNG, WebP) sau PDF.", 415)
 
         item = await get_file_manager(self.hass).async_add(
             entry_id, key, field.filename or "document", bytes(content), *detected
@@ -210,10 +210,10 @@ class VehicleFilesView(HomeAssistantView):
     async def get(self, request: web.Request, entry_id: str, key: str) -> web.StreamResponse:
         found = get_file_manager(self.hass).find(entry_id, key)
         if found is None:
-            return self.json_message("Fisierul nu exista", 404)
+            return self.json_message("Fișierul nu există", 404)
         item, path = found
         if not await self.hass.async_add_executor_job(path.is_file):
-            return self.json_message("Fisierul lipseste de pe disc", 404)
+            return self.json_message("Fișierul lipsește de pe disc", 404)
         return web.FileResponse(
             path,
             headers={
@@ -260,6 +260,6 @@ async def ws_delete_file(
 ) -> None:
     """Sterge un fisier din dosar."""
     if not await get_file_manager(hass).async_delete(msg["file_id"]):
-        connection.send_error(msg["id"], "not_found", "Fisierul nu exista")
+        connection.send_error(msg["id"], "not_found", "Fișierul nu există")
         return
     connection.send_result(msg["id"])
