@@ -44,6 +44,10 @@ function t(text, vars) {
 }
 
 const EN = {
+  "Automat (dupa marca si model)": "Automatic (from make and model)",
+  "Break": "Estate",
+  "Coupe": "Coupe",
+  "Caroseria masinii desenate (fara model 3D)": "Body style of the drawn car (no 3D model)",
   "Urmeaza": "Next",
   "Inchide": "Close",
   "zi": "day",
@@ -390,6 +394,29 @@ function navigate(path) {
 const REDUCED_MOTION =
   typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+/*
+ * Proportiile masinii desenate cand nu exista model 3D (unitati ~ metri).
+ * L lungime, hb linia geamurilor, hr plafonul, xa/xf/xr/xc baza si varful stalpilor
+ * A si C, clear garda la sol, wr raza rotii, wb pozitiile puntilor.
+ */
+const BODY_TYPES = {
+  sedan: { L: 4.5, hb: 0.86, hr: 1.36, xa: 0.92, xf: 0.25, xr: -0.78, xc: -1.32, clear: 0.2, wr: 0.36, wb: [1.36, -1.36] },
+  hatchback: { L: 3.95, hb: 0.86, hr: 1.42, xa: 0.72, xf: 0.12, xr: -1.42, xc: -1.86, clear: 0.2, wr: 0.35, wb: [1.2, -1.22] },
+  wagon: { L: 4.6, hb: 0.86, hr: 1.4, xa: 0.92, xf: 0.28, xr: -2.02, xc: -2.2, clear: 0.2, wr: 0.36, wb: [1.4, -1.4] },
+  suv: { L: 4.45, hb: 1.04, hr: 1.66, xa: 0.92, xf: 0.32, xr: -1.86, xc: -2.08, clear: 0.34, wr: 0.42, wb: [1.36, -1.36] },
+  coupe: { L: 4.4, hb: 0.8, hr: 1.24, xa: 0.62, xf: -0.06, xr: -0.62, xc: -1.5, clear: 0.17, wr: 0.36, wb: [1.36, -1.34] },
+};
+
+/* Tipul caroseriei ghicit din marca si model, cand nu e ales in card. */
+function guessBodyType(vehicle) {
+  const text = `${vehicle.make || ""} ${vehicle.model || ""}`.toLowerCase();
+  if (/caravan|break|combi|kombi|estate|touring|variant|avant|sportswagon|tourer|\bsw\b|mcv/.test(text)) return "wagon";
+  if (/suv|duster|qashqai|tucson|sportage|kuga|tiguan|kodiaq|karoq|x-trail|rav4|cr-v|captur|3008|5008|2008|juke|vitara|bigster|kamiq|t-roc|\bx[1-7]\b|\bq[2-8]\b|glc|gle|xc[469]0|range rover|jeep/.test(text)) return "suv";
+  if (/coupe|coupé|\bgt\b|brz|mx-5|\btt\b|supra|mustang|camaro/.test(text)) return "coupe";
+  if (/hatch|clio|polo|corsa|fiesta|golf|i10|i20|i30|yaris|jazz|sandero|fabia|\b208\b|\bc[1-4]\b|ibiza|micra|swift|\bup\b|spark|astra|focus|ceed|megane|leon|aygo|twingo|picanto|\brio\b|spring/.test(text)) return "hatchback";
+  return "sedan";
+}
+
 class CarViewer {
   constructor(canvas, options) {
     this.canvas = canvas;
@@ -602,116 +629,150 @@ class CarViewer {
   /* --------------------------------------------------------------- */
   /* Masina procedurala                                               */
   /* --------------------------------------------------------------- */
-  _buildProceduralCar(colorHex) {
+  _buildProceduralCar(colorHex, bodyType) {
     const THREE = this.THREE;
+    const spec = BODY_TYPES[bodyType] || BODY_TYPES.sedan;
     const group = new THREE.Group();
-    const width = 1.86;
+    const { L, hb, hr, xa, xf, xr, xc, clear, wr, wb } = spec;
+    const W = 1.8; /* latimea caroseriei (fara bevel) */
+    const front = L / 2;
+    const rear = -L / 2;
 
-    const bodyShape = new THREE.Shape();
-    bodyShape.moveTo(-1.95, 0.22);
-    bodyShape.lineTo(-2.06, 0.5);
-    bodyShape.quadraticCurveTo(-2.1, 0.74, -1.86, 0.8);
-    bodyShape.quadraticCurveTo(-1.5, 0.86, -1.22, 0.88);
-    bodyShape.quadraticCurveTo(-0.95, 1.26, -0.52, 1.3);
-    bodyShape.lineTo(0.2, 1.31);
-    bodyShape.quadraticCurveTo(0.68, 1.28, 0.86, 0.94);
-    bodyShape.quadraticCurveTo(1.3, 0.84, 1.72, 0.78);
-    bodyShape.quadraticCurveTo(2.04, 0.72, 2.08, 0.46);
-    bodyShape.lineTo(2.04, 0.24);
-    bodyShape.quadraticCurveTo(1.9, 0.16, 1.6, 0.16);
-    bodyShape.lineTo(-1.6, 0.16);
-    bodyShape.quadraticCurveTo(-1.88, 0.16, -1.95, 0.22);
-
-    const bodyGeometry = new THREE.ExtrudeGeometry(bodyShape, {
-      depth: width,
-      bevelEnabled: true,
-      bevelThickness: 0.1,
-      bevelSize: 0.1,
-      bevelSegments: 4,
-      curveSegments: 18,
-    });
-    bodyGeometry.translate(0, 0, -width / 2);
-
-    const bodyMaterial = new THREE.MeshPhysicalMaterial({
+    const paint = new THREE.MeshPhysicalMaterial({
       color: new THREE.Color(colorHex),
-      metalness: 0.5,
+      metalness: 0.55,
       roughness: 0.22,
       clearcoat: 1,
-      clearcoatRoughness: 0.06,
-      envMapIntensity: 1.25,
+      clearcoatRoughness: 0.05,
+      envMapIntensity: 1.3,
     });
-    group.add(new THREE.Mesh(bodyGeometry, bodyMaterial));
+    const glass = new THREE.MeshPhysicalMaterial({
+      color: 0x0a1018,
+      metalness: 0.3,
+      roughness: 0.06,
+      envMapIntensity: 1.8,
+      transparent: true,
+      opacity: 0.92,
+    });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x07090c, roughness: 0.9 });
 
-    /* Contur holografic subtil peste caroserie. */
+    /* --- caroseria de jos (pana la linia geamurilor) --- */
+    const lower = new THREE.Shape();
+    lower.moveTo(rear + 0.22, clear);
+    lower.quadraticCurveTo(rear, clear, rear, clear + 0.2);
+    lower.lineTo(rear, hb - 0.12);
+    lower.quadraticCurveTo(rear + 0.02, hb, rear + 0.28, hb);
+    lower.lineTo(xa, hb);
+    lower.quadraticCurveTo(front - 0.25, hb - 0.03, front - 0.02, hb - 0.24);
+    lower.lineTo(front, clear + 0.22);
+    lower.quadraticCurveTo(front, clear, front - 0.24, clear);
+    lower.lineTo(rear + 0.22, clear);
+
+    const lowerGeometry = new THREE.ExtrudeGeometry(lower, {
+      depth: W,
+      bevelEnabled: true,
+      bevelThickness: 0.08,
+      bevelSize: 0.08,
+      bevelSegments: 4,
+      curveSegments: 16,
+    });
+    lowerGeometry.translate(0, 0, -W / 2);
+    group.add(new THREE.Mesh(lowerGeometry, paint));
+
+    /* contur holografic subtil */
     this.edgeMaterial = new THREE.LineBasicMaterial({
       color: this.options.accent,
       transparent: true,
       opacity: 0.22,
     });
-    const edges = new THREE.LineSegments(
-      new THREE.EdgesGeometry(bodyGeometry, 26),
-      this.edgeMaterial
-    );
+    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(lowerGeometry, 26), this.edgeMaterial);
     edges.scale.set(1.004, 1.004, 1.004);
     group.add(edges);
 
-    /* Banda de geamuri. */
-    const glassShape = new THREE.Shape();
-    glassShape.moveTo(-1.16, 0.9);
-    glassShape.quadraticCurveTo(-0.92, 1.2, -0.52, 1.24);
-    glassShape.lineTo(0.18, 1.25);
-    glassShape.quadraticCurveTo(0.6, 1.22, 0.78, 0.95);
-    glassShape.lineTo(-1.16, 0.9);
-
-    const glassGeometry = new THREE.ExtrudeGeometry(glassShape, {
-      depth: width + 0.04,
-      bevelEnabled: false,
-      curveSegments: 14,
+    /* --- habitaclul: geamuri fumurii, mai ingust decat caroseria --- */
+    const cabinW = W * 0.84;
+    const cabin = new THREE.Shape();
+    cabin.moveTo(xc, hb);
+    cabin.lineTo(xr, hr - 0.06);
+    cabin.quadraticCurveTo(xr + 0.04, hr, xr + 0.18, hr);
+    cabin.lineTo(xf - 0.16, hr);
+    cabin.quadraticCurveTo(xf - 0.02, hr, xf, hr - 0.06);
+    cabin.lineTo(xa, hb);
+    cabin.lineTo(xc, hb);
+    const cabinGeometry = new THREE.ExtrudeGeometry(cabin, {
+      depth: cabinW,
+      bevelEnabled: true,
+      bevelThickness: 0.05,
+      bevelSize: 0.05,
+      bevelSegments: 3,
+      curveSegments: 10,
     });
-    glassGeometry.translate(0, 0, -(width + 0.04) / 2);
-    group.add(
-      new THREE.Mesh(
-        glassGeometry,
-        new THREE.MeshPhysicalMaterial({
-          color: 0x080d14,
-          metalness: 0.2,
-          roughness: 0.08,
-          envMapIntensity: 1.6,
-        })
-      )
+    cabinGeometry.translate(0, 0.02, -cabinW / 2);
+    group.add(new THREE.Mesh(cabinGeometry, glass));
+
+    /* plafonul si stalpii, in culoarea masinii */
+    const roof = new THREE.Mesh(
+      new THREE.BoxGeometry(xf - xr - 0.22, 0.06, cabinW + 0.1),
+      paint
     );
+    roof.position.set((xf + xr) / 2, hr + 0.04, 0);
+    group.add(roof);
 
-    /* Roti. */
-    const tireMaterial = new THREE.MeshStandardMaterial({
-      color: 0x12161b,
-      roughness: 0.88,
-      metalness: 0.05,
-    });
+    const pillar = (x1, y1, x2, y2, thickness) => {
+      const length = Math.hypot(x2 - x1, y2 - y1);
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(length, thickness, cabinW + 0.11), paint);
+      mesh.position.set((x1 + x2) / 2, (y1 + y2) / 2 + 0.02, 0);
+      mesh.rotation.z = Math.atan2(y2 - y1, x2 - x1);
+      return mesh;
+    };
+    group.add(pillar(xa, hb, xf, hr, 0.07)); /* stalpul A */
+    group.add(pillar(xc, hb, xr, hr, 0.1)); /* stalpul C */
+    const bx = (xf + xr) / 2 + 0.05;
+    group.add(pillar(bx, hb, bx, hr, 0.09)); /* stalpul B */
+
+    /* --- roti: pasaj intunecat, anvelopa, janta cu 5 spite --- */
+    const tireMaterial = new THREE.MeshStandardMaterial({ color: 0x111418, roughness: 0.9 });
     const rimMaterial = new THREE.MeshPhysicalMaterial({
       color: 0xd3dae1,
       metalness: 1,
-      roughness: 0.24,
+      roughness: 0.25,
       envMapIntensity: 1.5,
     });
-    const tireGeometry = new THREE.CylinderGeometry(0.42, 0.42, 0.3, 36);
-    const rimGeometry = new THREE.CylinderGeometry(0.25, 0.25, 0.32, 20);
+    const tireGeometry = new THREE.CylinderGeometry(wr, wr, 0.3, 40);
+    const rimGeometry = new THREE.CylinderGeometry(wr * 0.62, wr * 0.62, 0.31, 28);
+    const hubGeometry = new THREE.CylinderGeometry(wr * 0.16, wr * 0.16, 0.33, 16);
+    const spokeGeometry = new THREE.BoxGeometry(wr * 0.12, wr * 0.5, 0.32);
+    const archGeometry = new THREE.CylinderGeometry(wr + 0.07, wr + 0.07, 0.01, 40);
 
     this.wheels = [];
-    for (const x of [1.3, -1.32]) {
-      for (const z of [width / 2 - 0.02, -(width / 2 - 0.02)]) {
+    for (const x of wb) {
+      for (const side of [1, -1]) {
+        const arch = new THREE.Mesh(archGeometry, dark);
+        arch.rotation.x = Math.PI / 2;
+        arch.position.set(x, wr, side * (W / 2 + 0.085));
+        group.add(arch);
+
         const wheel = new THREE.Group();
         const tire = new THREE.Mesh(tireGeometry, tireMaterial);
-        const rim = new THREE.Mesh(rimGeometry, rimMaterial);
-        tire.rotation.x = Math.PI / 2;
-        rim.rotation.x = Math.PI / 2;
-        wheel.add(tire, rim);
-        wheel.position.set(x, 0.42, z);
+        const rim = new THREE.Mesh(rimGeometry, dark);
+        const hub = new THREE.Mesh(hubGeometry, rimMaterial);
+        for (const part of [tire, rim, hub]) part.rotation.x = Math.PI / 2;
+        wheel.add(tire, rim, hub);
+        for (let i = 0; i < 5; i += 1) {
+          const spoke = new THREE.Mesh(spokeGeometry, rimMaterial);
+          spoke.position.y = wr * 0.32;
+          const holder = new THREE.Group();
+          holder.rotation.z = (i / 5) * Math.PI * 2;
+          holder.add(spoke);
+          wheel.add(holder);
+        }
+        wheel.position.set(x, wr, side * (W / 2 - 0.02));
         group.add(wheel);
         this.wheels.push(wheel);
       }
     }
 
-    /* Faruri si stopuri. */
+    /* --- faruri si stopuri --- */
     const headlight = new THREE.MeshStandardMaterial({
       color: 0xffffff,
       emissive: new THREE.Color(0xdff3ff),
@@ -722,16 +783,19 @@ class CarViewer {
       emissive: new THREE.Color(0xff2d3f),
       emissiveIntensity: 2.2,
     });
-    const lampGeometry = new THREE.BoxGeometry(0.08, 0.1, 0.46);
-    for (const z of [0.56, -0.56]) {
-      const front = new THREE.Mesh(lampGeometry, headlight);
-      front.position.set(2.06, 0.48, z);
-      group.add(front);
-      const rear = new THREE.Mesh(lampGeometry, taillight);
-      rear.position.set(-2.07, 0.58, z);
-      group.add(rear);
+    const lamp = new THREE.BoxGeometry(0.1, 0.1, 0.42);
+    for (const z of [0.58, -0.58]) {
+      const head = new THREE.Mesh(lamp, headlight);
+      head.position.set(front + 0.04, hb - 0.3, z);
+      group.add(head);
+      const tail = new THREE.Mesh(lamp, taillight);
+      tail.position.set(rear - 0.04, hb - 0.16, z);
+      group.add(tail);
     }
 
+    /* masinile mai lungi sau mai inalte decat cadrul sunt scalate ca sa incapa */
+    const scale = Math.min(1, 4.3 / L);
+    group.scale.setScalar(scale);
     return group;
   }
 
@@ -775,7 +839,7 @@ class CarViewer {
       return;
     }
 
-    const key = `${vehicle.model3d || ""}|${vehicle.colorHex}`;
+    const key = `${vehicle.model3d || ""}|${vehicle.colorHex}|${vehicle.bodyType || ""}`;
     if (key === this._currentKey) return;
     this._currentKey = key;
 
@@ -798,7 +862,7 @@ class CarViewer {
       }
     }
 
-    this.carGroup.add(this._buildProceduralCar(vehicle.colorHex));
+    this.carGroup.add(this._buildProceduralCar(vehicle.colorHex, vehicle.bodyType));
     this._kick();
   }
 
@@ -3561,6 +3625,10 @@ class VehicleManagerCard extends HTMLElement {
     this._viewer?.setVehicle({
       model3d: attributes.model_3d || null,
       colorHex: vehicle.color_hex || "#9aa4af",
+      bodyType:
+        this._config.body_type && this._config.body_type !== "auto"
+          ? this._config.body_type
+          : guessBodyType(vehicle),
     });
     this._applyStageSource();
 
@@ -3869,6 +3937,22 @@ const editorSchema = () => [
   },
   { name: "navigation_path", selector: { navigation: {} } },
   {
+    name: "body_type",
+    selector: {
+      select: {
+        mode: "dropdown",
+        options: [
+          ["auto", "Automat (dupa marca si model)"],
+          ["sedan", "Sedan"],
+          ["hatchback", "Hatchback"],
+          ["wagon", "Break"],
+          ["suv", "SUV"],
+          ["coupe", "Coupe"],
+        ].map(([value, label]) => ({ value, label: t(label) })),
+      },
+    },
+  },
+  {
     name: "documents",
     selector: {
       select: {
@@ -3905,6 +3989,7 @@ const EDITOR_LABELS = {
   navigation_path: "Pagina deschisa din modul compact (ex. /lovelace/masini)",
   documents: "Acte afisate (nimic bifat: cele 5 de baza + actele completate)",
   specs: "Caracteristici afisate (nimic bifat: toate)",
+  body_type: "Caroseria masinii desenate (fara model 3D)",
   three_src: "Sursa three.js",
 };
 
