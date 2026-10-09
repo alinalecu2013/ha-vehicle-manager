@@ -1,0 +1,7 @@
+version: 2
+updates:
+  # propune automat versiuni noi (verificate) pentru actiunile fixate prin SHA
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

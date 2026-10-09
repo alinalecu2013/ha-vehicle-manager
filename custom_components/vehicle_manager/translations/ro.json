@@ -73,7 +73,8 @@
           "media": "Poza și model 3D",
           "thresholds": "Praguri de avertizare",
           "mileage_source": "Kilometraj automat",
-          "parking": "Unde am parcat"
+          "parking": "Unde am parcat",
+          "privacy": "Confidențialitate"
         }
       },
       "vehicle": {
@@ -131,6 +132,11 @@
           "parking_bt_sensor": "Senzorul de conexiune Bluetooth al telefonului",
           "parking_bt_device": "Numele sau adresa Bluetooth a mașinii"
         }
+      },
+      "privacy": {
+        "title": "Confidențialitate",
+        "description": "Încărcarea și ștergerea fișierelor din dosarul vehiculului (documentele scanate) sunt mereu rezervate administratorilor. Aici alegi cine le poate și vedea.",
+        "data": { "files_admin_only": "Dosarul îl văd doar administratorii" }
       },
       "thresholds": {
         "title": "Praguri de avertizare",

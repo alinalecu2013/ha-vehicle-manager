@@ -61,7 +61,8 @@ def color_to_hex(raw: Any) -> str:
     if not raw:
         return DEFAULT_COLOR_HEX
     text = str(raw).strip()
-    if text.startswith("#") and len(text) in (4, 7):
+    # doar hex valid: valoarea ajunge in stilul cardului
+    if re.fullmatch(r"#(?:[0-9a-fA-F]{3}){1,2}", text):
         return text
     key = _strip_diacritics(text)
     if key in COLOR_HEX:

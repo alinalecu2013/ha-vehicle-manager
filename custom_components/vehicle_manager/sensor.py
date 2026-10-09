@@ -82,6 +82,10 @@ class VehicleStatusSensor(VehicleEntity, SensorEntity):
     """Senzorul principal: starea generala plus toate datele pentru card."""
 
     _attr_translation_key = "status"
+    # cardul citeste starea curenta; in istoric nu pastram datele mari si locul de parcare
+    _unrecorded_attributes = frozenset(
+        {"vehicle", "documents", "entities", "photo", "model_3d", "attention", "updated"}
+    )
 
     def __init__(self, coordinator: VehicleCoordinator) -> None:
         """Initializeaza senzorul de stare."""

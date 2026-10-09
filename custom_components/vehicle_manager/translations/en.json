@@ -73,7 +73,8 @@
           "media": "Photo and 3D model",
           "thresholds": "Warning thresholds",
           "mileage_source": "Automatic mileage",
-          "parking": "Where I parked"
+          "parking": "Where I parked",
+          "privacy": "Privacy"
         }
       },
       "vehicle": {
@@ -131,6 +132,11 @@
           "parking_bt_sensor": "Phone Bluetooth connection sensor",
           "parking_bt_device": "Car Bluetooth name or address"
         }
+      },
+      "privacy": {
+        "title": "Privacy",
+        "description": "Uploading and deleting files in the vehicle folder (scanned documents) is always reserved to administrators. Here you choose who can also see them.",
+        "data": { "files_admin_only": "Only administrators can see the folder" }
       },
       "thresholds": {
         "title": "Warning thresholds",

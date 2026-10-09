@@ -95,7 +95,7 @@ listeaza in meniul drop-down din partea de sus.
 | `specs` | toate | Lista caracteristicilor afisate: `make`, `model`, `year`, `mileage`, `color`, `engine_capacity`, `fuel_type`, `license_plate`. |
 | `accent` | `#00e5ff` | Culoarea accent (ignorata dupa ce salvezi o tema din **Themes**). |
 | `accent2` | `#ff2bd6` | Culoarea accent secundara (idem). |
-| `three_src` | `https://esm.sh/three@0.160.0` | Sursa bibliotecii three.js. |
+| `three_src` | copia locala (r160) | Sursa bibliotecii three.js; implicit cea inclusa in integrare. |
 | `gltf_loader_src` | derivat din `three_src` | Sursa `GLTFLoader`. |
 
 Exemplu complet:
@@ -270,13 +270,7 @@ npx @gltf-transform/cli optimize masina.glb masina_optimizat.glb   --compress qu
 `quantize` e citit direct de three.js (fara decodoare suplimentare); nu folosi `draco` sau
 `meshopt`, cardul nu le incarca. Exemplu: un Citroen C3 a scazut de la 20 MB la 4 MB.
 
-three.js se incarca de pe CDN la prima afisare. Pentru instalari fara internet, pune
-`three.module.js` in `config/www/` si seteaza:
-
-```yaml
-three_src: /local/three.module.js
-gltf_loader_src: /local/GLTFLoader.js
-```
+three.js e inclus in integrare si se incarca local, deci scena 3D merge si fara internet.
 
 Daca three.js nu poate fi incarcat si vehiculul are poza, cardul comuta automat pe poza.
 
@@ -429,6 +423,26 @@ automation:
           message: >
             {{ state_attr('binary_sensor.logan_acte_de_rezolvat', 'acte') | join(', ') }}
 ```
+
+## Securitate si confidentialitate
+
+- **three.js e inclus in integrare** (`www/vendor`, three r160 din pachetul npm verificat),
+  nu se mai descarca de pe un CDN la fiecare deschidere a cardului. Merge si fara internet.
+- **Dosarul:** doar administratorii pot incarca si sterge documente. Din
+  **Configurare &rsaquo; Confidentialitate** poti alege ca dosarul unui vehicul sa fie vazut
+  doar de administratori. Fisierele nu sunt in `www` (public); se deschid prin linkuri semnate
+  valabile un minut. Limite: 100 de fisiere si 200 MB pe vehicul.
+- **Tema** (inclusiv limba si imaginea de fundal) se salveaza doar de administratori; ceilalti
+  utilizatori o pot incerca in card, fara sa o salveze. Imaginea de fundal poate fi doar
+  locala (`/local/...`).
+- **Exportul CSV** neutralizeaza celulele care ar fi interpretate ca formule de Excel.
+- **Istoricul Home Assistant** nu pastreaza coordonatele locului de parcare si nici datele
+  mari ale vehiculului (acte, fisiere), doar starea.
+- Valorile introduse in configurarea vehiculului sunt afisate in card ca text, nu ca HTML.
+
+Recomandari pentru instalarea ta: backup-uri criptate (dosarul intra in backup), acces din
+afara casei prin Home Assistant Cloud sau VPN, autentificare in doi pasi pentru conturile
+Home Assistant si GitHub.
 
 ## Detalii de implementare
 

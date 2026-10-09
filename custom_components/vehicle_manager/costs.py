@@ -268,6 +268,12 @@ def _ro_number(value: float | int | None, decimals: int = 2) -> str:
     return f"{value:.{decimals}f}".replace(".", ",")
 
 
+def _safe_cell(text: str) -> str:
+    """Excel ar executa o celula care incepe cu = + - @ ca formula (CSV injection)."""
+    text = str(text or "")
+    return "'" + text if text[:1] in ("=", "+", "-", "@", "\t", "\r") else text
+
+
 def expenses_csv(
     expenses: list[dict[str, Any]], currency: str, period: str
 ) -> str:
@@ -289,7 +295,7 @@ def expenses_csv(
                 e["mileage"] if e.get("mileage") is not None else "",
                 _ro_number(e.get("quantity")),
                 {True: "da", False: "nu"}.get(e.get("full_tank"), "") if e.get("quantity") else "",
-                e.get("note", ""),
+                _safe_cell(e.get("note", "")),
             ]
         )
     writer.writerow([])
@@ -328,7 +334,8 @@ class ExpensesCsvView(HomeAssistantView):
             content_type="text/csv",
             charset="utf-8",
             headers={
-                "Content-Disposition": f'attachment; filename="cheltuieli_{name}_{suffix}.csv"'
+                "Content-Disposition": f'attachment; filename="cheltuieli_{name}_{suffix}.csv"',
+                "X-Content-Type-Options": "nosniff",
             },
         )
 

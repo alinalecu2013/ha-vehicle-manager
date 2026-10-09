@@ -6,8 +6,13 @@
  * model 3D rotativ in centru, acte in dreapta.
  */
 
-const CARD_VERSION = "2.2.0";
-const DEFAULT_THREE = "https://esm.sh/three@0.160.0";
+const CARD_VERSION = "2.3.0";
+/*
+ * three.js r160 e inclus in integrare (www/vendor), nu se mai descarca de pe un CDN:
+ * codul ruleaza in pagina Home Assistant, cu sesiunea utilizatorului.
+ */
+const DEFAULT_THREE = "/vehicle_manager_files/vendor/three.module.min.js";
+const DEFAULT_GLTF_LOADER = "/vehicle_manager_files/vendor/GLTFLoader.js";
 
 /* ------------------------------------------------------------------ */
 /* Limba: romana cand Home Assistant e in romana, altfel engleza        */
@@ -44,6 +49,10 @@ function t(text, vars) {
 }
 
 const EN = {
+  "Doar administratorii pot vedea dosarul acestui vehicul.": "Only administrators can see this vehicle's folder.",
+  "Poți deschide documentele; doar administratorii le pot adăuga sau șterge.": "You can open the documents; only administrators can add or delete them.",
+  "Doar administratorii pot salva tema.": "Only administrators can save the theme.",
+  "Poți încerca temele aici; doar administratorii le pot salva.": "You can try themes here; only administrators can save them.",
   "Automat (după marca și model)": "Automatic (from make and model)",
   "Break": "Estate",
   "Coupe": "Coupe",
@@ -161,8 +170,8 @@ const EN = {
   "fără imagine": "no image",
   "Încarcă imagine": "Upload image",
   "Elimină": "Remove",
-  "sau un URL: /local/fundal.jpg, https://...": "or a URL: /local/background.jpg, https://...",
-  "URL invalid: trebuie să înceapă cu / sau https:// și să nu conțină spații, ghilimele sau paranteze.": "Invalid URL: it must start with / or https:// and contain no spaces, quotes or parentheses.",
+  "sau o cale locală: /local/fundal.jpg": "or a local path: /local/background.jpg",
+  "Cale invalidă: doar imagini locale (/local/...), fără spații, ghilimele sau paranteze.": "Invalid path: local images only (/local/...), without spaces, quotes or parentheses.",
   "Se pregătește imaginea...": "Preparing the image...",
   "Se încarcă imaginea...": "Uploading the image...",
   "serverul rulează o versiune veche a integrării; copiază theme.py nou și restartează Home Assistant": "the server runs an old version of the integration; update it and restart Home Assistant",
@@ -1070,7 +1079,7 @@ const THEME_WS_SAVE = "vehicle_manager/theme/save";
 const THEME_BG_UPLOAD = "/api/vehicle_manager/theme/background";
 
 /* Aceeasi regula ca BG_URL_RE din theme.py: valoarea ajunge in CSS url("..."). */
-const BG_URL_RE = /^(https?:\/\/|\/)[^\s"'()<>\\]+$/;
+const BG_URL_RE = /^\/(?!\/)[^\s"'()<>\\]+$/;
 const BG_MAX_SIDE = 1920;
 
 const THEME_COLOR_KEYS = [
@@ -2523,6 +2532,9 @@ class VehicleManagerCard extends HTMLElement {
         (message) => {
           if (this._filesEntry !== entryId) return;
           this._files = message.files || [];
+          /* versiunile vechi nu trimit drepturile: atunci totul e permis, ca inainte */
+          this._filesRestricted = Boolean(message.restricted);
+          this._filesCanEdit = message.can_edit !== false;
           /* agrafele din lista de acte + panoul, daca e deschis */
           this._signature = null;
           this._update();
@@ -2586,12 +2598,20 @@ class VehicleManagerCard extends HTMLElement {
       previous ||
       (this._files === null
         ? t("Dosarul nu poate fi încărcat (actualizează integrarea și restartează Home Assistant).")
+        : this._filesRestricted
+        ? t("Doar administratorii pot vedea dosarul acestui vehicul.")
+        : this._files && !this._filesCanEdit
+        ? t("Poți deschide documentele; doar administratorii le pot adăuga sau șterge.")
         : this._files === undefined
         ? t("Se încarcă...")
         : t("Poze sau PDF-uri cu actele mașinii. Se deschid doar din Home Assistant."));
 
     const list = document.createElement("div");
     list.className = "f-list";
+    if (this._filesRestricted) {
+      root.replaceChildren(head);
+      return;
+    }
     for (const [slot, label, icon] of slots) {
       const row = document.createElement("div");
       row.className = "f-slot";
@@ -2621,7 +2641,7 @@ class VehicleManagerCard extends HTMLElement {
         add.disabled = false;
         input.value = "";
       });
-      row.append(add, input);
+      if (this._filesCanEdit !== false) row.append(add, input);
       list.append(row);
     }
     root.replaceChildren(head, list);
@@ -2640,6 +2660,7 @@ class VehicleManagerCard extends HTMLElement {
     chip.querySelector(".open").title = `${item.name} · ${formatNumber(Math.round(item.size / 1024))} KB`;
     chip.querySelector(".open").addEventListener("click", () => this._openFile(item));
     const del = chip.querySelector(".del");
+    if (this._filesCanEdit === false) del.remove();
     del.addEventListener("click", async () => {
       /* primul click cere confirmare, al doilea sterge */
       if (del.dataset.confirm !== "true") {
@@ -3276,6 +3297,12 @@ class VehicleManagerCard extends HTMLElement {
             : t("Tema nu a putut fi salvată: {err}", { err: err?.message || err?.code || err });
       }
     });
+    /* tema e comuna tuturor: doar administratorii o pot salva */
+    if (this._hass?.user?.is_admin === false) {
+      save.disabled = true;
+      save.title = t("Doar administratorii pot salva tema.");
+      status.textContent = t("Poți încerca temele aici; doar administratorii le pot salva.");
+    }
     actions.append(reset, cancel, save);
 
     root.replaceChildren(head, presets, groups, actions);
@@ -3308,17 +3335,18 @@ class VehicleManagerCard extends HTMLElement {
       upload.disabled = false;
     });
     actions.append(upload, remove, file);
+    if (this._hass?.user?.is_admin === false) upload.remove();
 
     const url = document.createElement("input");
     url.type = "text";
     url.className = "th-bg-url";
-    url.placeholder = t("sau un URL: /local/fundal.jpg, https://...");
+    url.placeholder = t("sau o cale locală: /local/fundal.jpg");
     url.value = draft.bg_image;
     url.addEventListener("change", () => {
       const value = url.value.trim();
       if (value && !BG_URL_RE.test(value)) {
         this._themeStatus.textContent =
-          t("URL invalid: trebuie să înceapă cu / sau https:// și să nu conțină spații, ghilimele sau paranteze.");
+          t("Cale invalidă: doar imagini locale (/local/...), fără spații, ghilimele sau paranteze.");
         return;
       }
       this._setDraft({ bg_image: value }, true);
@@ -3458,7 +3486,8 @@ class VehicleManagerCard extends HTMLElement {
       ...this._sceneColors(this._currentTheme()),
       threeSrc: base,
       gltfLoaderSrc:
-        config.gltf_loader_src || `${base}/examples/jsm/loaders/GLTFLoader.js`,
+        config.gltf_loader_src ||
+        (base === DEFAULT_THREE ? DEFAULT_GLTF_LOADER : `${base}/examples/jsm/loaders/GLTFLoader.js`),
       autoRotate: config.auto_rotate !== false,
       rotateSpeed: Number(config.rotate_speed) || 0.35,
     });
@@ -3798,15 +3827,30 @@ class VehicleManagerCard extends HTMLElement {
         ? `${formatNumber(raw)} ${row.unit}`
         : String(raw);
 
-    node.innerHTML = `
-      <ha-icon icon="${row.key === "fuel_type" && vehicle.fuel_icon ? vehicle.fuel_icon : row.icon}"></ha-icon>
-      <span class="k">${t(row.label)}</span>
-      <span class="v">
-        ${row.swatch && vehicle.color_hex ? `<span class="swatch" style="background:${vehicle.color_hex}"></span>` : ""}
-        ${row.auto && vehicle[row.auto] ? `<span class="auto" title="${t("Preluat automat din senzor")}">auto</span>` : ""}
-        <span>${value}</span>
-      </span>
-    `;
+    /* valorile vin din configurarea vehiculului: textContent, niciodata innerHTML */
+    node.innerHTML = `<ha-icon></ha-icon><span class="k"></span><span class="v"></span>`;
+    node.querySelector("ha-icon").setAttribute(
+      "icon",
+      row.key === "fuel_type" && vehicle.fuel_icon ? vehicle.fuel_icon : row.icon
+    );
+    node.querySelector(".k").textContent = t(row.label);
+    const cell = node.querySelector(".v");
+    if (row.swatch && /^#[0-9a-f]{3}(?:[0-9a-f]{3})?$/i.test(vehicle.color_hex || "")) {
+      const swatch = document.createElement("span");
+      swatch.className = "swatch";
+      swatch.style.background = vehicle.color_hex;
+      cell.append(swatch);
+    }
+    if (row.auto && vehicle[row.auto]) {
+      const badge = document.createElement("span");
+      badge.className = "auto";
+      badge.title = t("Preluat automat din senzor");
+      badge.textContent = "auto";
+      cell.append(badge);
+    }
+    const text = document.createElement("span");
+    text.textContent = value;
+    cell.append(text);
 
     if (clickable) {
       node.type = "button";

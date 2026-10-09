@@ -6,7 +6,7 @@ from datetime import timedelta
 from typing import Final
 
 DOMAIN: Final = "vehicle_manager"
-VERSION: Final = "2.2.0"
+VERSION: Final = "2.3.0"
 
 PLATFORMS: Final = [
     "sensor",
@@ -39,6 +39,8 @@ CONF_PARKING: Final = "parking"
 CONF_PARKING_TRACKER: Final = "parking_tracker"
 CONF_PARKING_BT_SENSOR: Final = "parking_bt_sensor"
 CONF_PARKING_BT_DEVICE: Final = "parking_bt_device"
+# Dosarul (documentele scanate) se poate vedea doar de administratori
+CONF_FILES_ADMIN_ONLY: Final = "files_admin_only"
 CONF_COLOR: Final = "color"
 CONF_ENGINE_CAPACITY: Final = "engine_capacity"
 CONF_FUEL_TYPE: Final = "fuel_type"

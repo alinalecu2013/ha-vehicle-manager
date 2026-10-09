@@ -26,7 +26,7 @@ from homeassistant.helpers.dispatcher import (
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from .const import DOCUMENTS, DOMAIN
+from .const import CONF_FILES_ADMIN_ONLY, DOCUMENTS, DOMAIN
 
 STORAGE_KEY = f"{DOMAIN}.files"
 STORAGE_VERSION = 1
@@ -36,6 +36,9 @@ DATA_FILES = "file_manager"
 # Pe langa acte: talon, cartea masinii, procese-verbale etc.
 GENERAL_SLOT = "general"
 MAX_BYTES = 20 * 1024 * 1024
+# limite pe vehicul, ca un cont compromis sa nu poata umple discul
+MAX_FILES_PER_VEHICLE = 100
+MAX_TOTAL_BYTES = 200 * 1024 * 1024
 NAME_MAX = 120
 
 WS_SUBSCRIBE = f"{DOMAIN}/files/subscribe"
@@ -91,6 +94,11 @@ class FileManager:
         """Fisierele unui vehicul, cele mai noi primele (fara calea de pe disc)."""
         items = sorted(self._data.get(entry_id, []), key=lambda f: f["uploaded"], reverse=True)
         return [{k: v for k, v in item.items() if k != "file"} for item in items]
+
+    def usage(self, entry_id: str) -> tuple[int, int]:
+        """(numar de fisiere, octeti) folositi de un vehicul."""
+        items = self._data.get(entry_id, [])
+        return len(items), sum(item["size"] for item in items)
 
     def find(self, entry_id: str, file_id: str) -> tuple[dict[str, Any], Path] | None:
         for item in self._data.get(entry_id, []):
@@ -169,6 +177,12 @@ def _known_entry(hass: HomeAssistant, entry_id: str) -> bool:
     return entry_id in hass.data.get(DOMAIN, {}).get("coordinators", {})
 
 
+def admin_only(hass: HomeAssistant, entry_id: str) -> bool:
+    """Optiunea vehiculului: dosarul il vad doar administratorii."""
+    coordinator = hass.data.get(DOMAIN, {}).get("coordinators", {}).get(entry_id)
+    return bool(coordinator and coordinator.option(CONF_FILES_ADMIN_ONLY))
+
+
 class VehicleFilesView(HomeAssistantView):
     """POST: incarca un fisier pentru un act. GET: descarca un fisier."""
 
@@ -184,6 +198,11 @@ class VehicleFilesView(HomeAssistantView):
             return self.json_message("Vehicul necunoscut", 404)
         if not valid_slot(key):
             return self.json_message("Act necunoscut", 400)
+        if not request["hass_user"].is_admin:
+            return self.json_message("Doar administratorii pot încărca documente.", 403)
+        count, used = get_file_manager(self.hass).usage(entry_id)
+        if count >= MAX_FILES_PER_VEHICLE:
+            return self.json_message(f"Dosarul are deja {MAX_FILES_PER_VEHICLE} de fișiere.", 413)
 
         reader = await request.multipart()
         field = await reader.next()
@@ -198,6 +217,9 @@ class VehicleFilesView(HomeAssistantView):
             if len(content) > MAX_BYTES:
                 return self.json_message("Fișierul depășește 20 MB.", 413)
 
+        if used + len(content) > MAX_TOTAL_BYTES:
+            return self.json_message("Dosarul vehiculului depășește 200 MB.", 413)
+
         detected = detect_type(bytes(content[:16]))
         if detected is None:
             return self.json_message("Format neacceptat. Folosește o poză (JPG, PNG, WebP) sau PDF.", 415)
@@ -208,6 +230,8 @@ class VehicleFilesView(HomeAssistantView):
         return self.json(item)
 
     async def get(self, request: web.Request, entry_id: str, key: str) -> web.StreamResponse:
+        if admin_only(self.hass, entry_id) and not request["hass_user"].is_admin:
+            return self.json_message("Doar administratorii pot vedea dosarul.", 403)
         found = get_file_manager(self.hass).find(entry_id, key)
         if found is None:
             return self.json_message("Fișierul nu există", 404)
@@ -224,6 +248,8 @@ class VehicleFilesView(HomeAssistantView):
                     f"filename*=UTF-8''{quote(item['name'])}"
                 ),
                 "Cache-Control": "private, no-store",
+                # browserul nu trebuie sa interpreteze niciodata un fisier ca pagina web
+                "X-Content-Type-Options": "nosniff",
             },
         )
 
@@ -239,11 +265,20 @@ def ws_subscribe_files(
         connection.send_error(msg["id"], "not_found", "Vehicul necunoscut")
         return
     manager = get_file_manager(hass)
+    is_admin = connection.user.is_admin
 
     @callback
     def forward() -> None:
+        restricted = admin_only(hass, entry_id) and not is_admin
         connection.send_message(
-            websocket_api.event_message(msg["id"], {"files": manager.files(entry_id)})
+            websocket_api.event_message(
+                msg["id"],
+                {
+                    "files": [] if restricted else manager.files(entry_id),
+                    "restricted": restricted,
+                    "can_edit": is_admin,
+                },
+            )
         )
 
     connection.subscriptions[msg["id"]] = async_dispatcher_connect(
@@ -254,6 +289,7 @@ def ws_subscribe_files(
 
 
 @websocket_api.websocket_command({vol.Required("type"): WS_DELETE, vol.Required("file_id"): str})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def ws_delete_file(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]

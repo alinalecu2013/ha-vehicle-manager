@@ -27,6 +27,7 @@ from .const import (
     CONF_MAKE,
     CONF_MEDIA_ID,
     CONF_MILEAGE,
+    CONF_FILES_ADMIN_ONLY,
     CONF_MILEAGE_SOURCE,
     CONF_PARKING_BT_DEVICE,
     CONF_PARKING_BT_SENSOR,
@@ -364,6 +365,7 @@ class VehicleManagerOptionsFlow(OptionsFlow):
                 "thresholds",
                 "mileage_source",
                 "parking",
+                "privacy",
             ],
         )
 
@@ -512,6 +514,26 @@ class VehicleManagerOptionsFlow(OptionsFlow):
                 user_input or self._current,
             ),
             errors=errors,
+        )
+
+    async def async_step_privacy(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Cine poate vedea dosarul cu documentele scanate."""
+        if user_input is not None:
+            return await self._async_save(
+                {CONF_FILES_ADMIN_ONLY: bool(user_input.get(CONF_FILES_ADMIN_ONLY))}, set()
+            )
+        return self.async_show_form(
+            step_id="privacy",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(
+                        CONF_FILES_ADMIN_ONLY,
+                        default=bool(self._current.get(CONF_FILES_ADMIN_ONLY)),
+                    ): selector.BooleanSelector(),
+                }
+            ),
         )
 
     async def async_step_thresholds(

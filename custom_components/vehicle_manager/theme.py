@@ -31,9 +31,10 @@ WS_SAVE = f"{DOMAIN}/theme/save"
 
 HEX_COLOR = vol.Match(r"^#[0-9a-fA-F]{6}$")
 
-# Imaginea de fundal: cale locala (/local/...) sau http(s). Fara ghilimele,
-# paranteze sau spatii, ca valoarea sa poata fi pusa sigur in CSS url("...").
-BG_URL_RE = r"^(https?://|/)[^\s\"'()<>\\]+$"
+# Imaginea de fundal: doar o cale locala (/local/...). Adresele externe ar putea
+# urmari cand si de unde se deschide dashboard-ul. Fara ghilimele, paranteze sau
+# spatii, ca valoarea sa poata fi pusa sigur in CSS url("...").
+BG_URL_RE = r"^/(?!/)[^\s\"'()<>\\]+$"
 BG_UPLOAD_URL = f"/api/{DOMAIN}/theme/background"
 BG_FILE_PREFIX = "theme-bg-"
 BG_MAX_BYTES = 15 * 1024 * 1024
@@ -142,6 +143,9 @@ class ThemeBackgroundView(HomeAssistantView):
         self.hass = hass
 
     async def post(self, request: web.Request) -> web.Response:
+        # fisierul ajunge in www (public), deci doar administratorii pot incarca
+        if not request["hass_user"].is_admin:
+            return self.json_message("Doar administratorii pot schimba tema.", 403)
         reader = await request.multipart()
         field = await reader.next()
         while field is not None and field.name != "file":
@@ -217,6 +221,7 @@ def ws_subscribe_theme(
         vol.Required("theme"): vol.Any(None, THEME_SCHEMA),
     }
 )
+@websocket_api.require_admin
 @websocket_api.async_response
 async def ws_save_theme(
     hass: HomeAssistant,

@@ -29,6 +29,10 @@ class VehicleParkingTracker(VehicleEntity, TrackerEntity):
 
     _attr_translation_key = "parking_location"
     _attr_icon = "mdi:car-brake-parking"
+    # harta arata locul curent; istoricul nu pastreaza traseul masinii
+    _unrecorded_attributes = frozenset(
+        {"latitude", "longitude", "gps_accuracy", "stare", "din"}
+    )
 
     def __init__(self, coordinator: VehicleCoordinator) -> None:
         """Initializeaza entitatea."""
