@@ -263,9 +263,9 @@ live in toate dashboard-urile deschise. **Renunta** revine la tema salvata, iar
 - **Trage cu mouse-ul/degetul** peste scena: rotire manuala, cu inertie.
 - **Fata / Profil / Spate / 3/4** (jos in scena): camera se muta lin in unghiul ales; rotirea
   automata asteapta 12 secunde.
-- **Punctele de pe masina:** fiecare zona (parbriz: ITP si rovinieta, capota: revizie si
-  distributie, roata: anvelope, flanc: RCA si CASCO, plafon: impozit, portbagaj: trusa si
-  extinctor) are culoarea celui mai urgent act; atingerea deschide actul.
+- **Punctele de pe masina:** fiecare zona (parbriz: ITP si rovinieta, roata: anvelope,
+  flanc: RCA si CASCO, portbagaj: trusa si extinctor) are culoarea celui mai urgent act;
+  atingerea deschide actul.
 - **Calendar scadente:** toate actele pe 12 luni; actele urmarite doar pe km (revizie,
   distributie) au o data estimata (~40 km/zi), marcata punctat.
 - **Click pe un act:** deschide entitatea `date` corespunzatoare, deci poti schimba data pe loc.

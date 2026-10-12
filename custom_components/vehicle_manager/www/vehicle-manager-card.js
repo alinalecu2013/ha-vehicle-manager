@@ -6,7 +6,7 @@
  * model 3D rotativ in centru, acte in dreapta.
  */
 
-const CARD_VERSION = "2.5.0";
+const CARD_VERSION = "2.5.1";
 /*
  * three.js r160 e inclus in integrare (www/vendor), nu se mai descarca de pe un CDN:
  * codul ruleaza in pagina Home Assistant, cu sesiunea utilizatorului.
@@ -477,18 +477,15 @@ function guessBodyType(vehicle) {
 /* Unde apar pe masina punctele de stare: fractiuni din cutia modelului (x de-a lungul, y in sus, z spre dreapta). */
 const HOTSPOT_ANCHORS = {
   windshield: { at: [0.17, 0.86, 0], dir: [0.6, 1, 0] },
-  hood: { at: [0.36, 0.64, 0], dir: [0.5, 1, 0] },
   wheel: { at: [0.3, 0.3, 0.5], dir: [0, 0.2, 1] },
-  roof: { at: [-0.14, 1, 0], dir: [0, 1, 0] },
   body: { at: [-0.04, 0.52, 0.5], dir: [0, 0.1, 1] },
   rear: { at: [-0.5, 0.58, 0], dir: [-1, 0.25, 0] },
 };
 
-/* Actul -> zona de pe masina. */
+/* Actul -> zona de pe masina. Actele fara zona (revizie, distributie, impozit) nu au punct. */
 const DOC_ANCHOR = {
-  rca: "body", casco: "body", impozit: "roof",
+  rca: "body", casco: "body",
   itp: "windshield", rovinieta: "windshield",
-  revizie: "hood", distributie: "hood",
   anvelope: "wheel",
   trusa_medicala: "rear", extinctor: "rear",
 };
@@ -4646,7 +4643,8 @@ class VehicleManagerCard extends HTMLElement {
     if (this._config.show_hotspots !== false && !this._config.compact) {
       for (const document_ of this._visibleDocuments(documents)) {
         if (document_.status === "unknown") continue;
-        const anchor = DOC_ANCHOR[document_.key] || "body";
+        const anchor = DOC_ANCHOR[document_.key];
+        if (!anchor) continue;
         if (!groups.has(anchor)) groups.set(anchor, []);
         groups.get(anchor).push(document_);
       }
