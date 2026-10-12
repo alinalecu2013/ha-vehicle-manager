@@ -6,7 +6,7 @@
  * model 3D rotativ in centru, acte in dreapta.
  */
 
-const CARD_VERSION = "2.4.0";
+const CARD_VERSION = "2.5.0";
 /*
  * three.js r160 e inclus in integrare (www/vendor), nu se mai descarca de pe un CDN:
  * codul ruleaza in pagina Home Assistant, cu sesiunea utilizatorului.
@@ -49,6 +49,28 @@ function t(text, vars) {
 }
 
 const EN = {
+  "Unghi cameră": "Camera angle",
+  "Față": "Front",
+  "Profil": "Side",
+  "Spate": "Rear",
+  "Vezi mașina în realitate augmentată": "View the car in augmented reality",
+  "Se încarcă modelul 3D… {p}%": "Loading 3D model… {p}%",
+  "Calendar scadențe": "Due dates timeline",
+  "expirate": "overdue",
+  "estimat după kilometri": "estimated from mileage",
+  "Lumina scenei": "Scene lighting",
+  "Neon (culorile temei)": "Neon (theme colors)",
+  "Studio (culoarea reală a mașinii)": "Studio (true paint color)",
+  "Automat: studio ziua, neon noaptea": "Auto: studio by day, neon at night",
+  "Garaj nocturn: temă luminoasă ziua, întunecată noaptea": "Night garage: light theme by day, dark at night",
+  "Față de {year}": "vs. {year}",
+  "Cost pe km": "Cost per km",
+  "Km parcurși (bonuri)": "Km driven (receipts)",
+  "Puncte de stare pe mașină": "Status points on the car",
+  "Lumini: faruri în mers, avarii la acte expirate": "Lights: headlights while driving, hazards for expired documents",
+  "Butoane pentru unghiul camerei": "Camera angle buttons",
+  "Buton realitate augmentată (Android)": "Augmented reality button (Android)",
+  "Calendarul scadențelor": "Due dates timeline",
   "Dashboardul deschis la atingerea unei mașini (gol = cel numit „AUTO Check”)": "Dashboard opened when tapping a car (empty = the one named “AUTO Check”)",
   "Doar administratorii pot vedea dosarul acestui vehicul.": "Only administrators can see this vehicle's folder.",
   "Poți deschide documentele; doar administratorii le pot adăuga sau șterge.": "You can open the documents; only administrators can add or delete them.",
@@ -452,6 +474,96 @@ function guessBodyType(vehicle) {
   return "sedan";
 }
 
+/* Unde apar pe masina punctele de stare: fractiuni din cutia modelului (x de-a lungul, y in sus, z spre dreapta). */
+const HOTSPOT_ANCHORS = {
+  windshield: { at: [0.17, 0.86, 0], dir: [0.6, 1, 0] },
+  hood: { at: [0.36, 0.64, 0], dir: [0.5, 1, 0] },
+  wheel: { at: [0.3, 0.3, 0.5], dir: [0, 0.2, 1] },
+  roof: { at: [-0.14, 1, 0], dir: [0, 1, 0] },
+  body: { at: [-0.04, 0.52, 0.5], dir: [0, 0.1, 1] },
+  rear: { at: [-0.5, 0.58, 0], dir: [-1, 0.25, 0] },
+};
+
+/* Actul -> zona de pe masina. */
+const DOC_ANCHOR = {
+  rca: "body", casco: "body", impozit: "roof",
+  itp: "windshield", rovinieta: "windshield",
+  revizie: "hood", distributie: "hood",
+  anvelope: "wheel",
+  trusa_medicala: "rear", extinctor: "rear",
+};
+
+/* Butoanele de vedere: [yaw, pitch]. Fata masinii e spre +X, camera la yaw 0 vede flancul drept. */
+const CAMERA_VIEWS = {
+  front: [Math.PI / 2, 0.1],
+  side: [0, 0.06],
+  rear: [-Math.PI / 2, 0.1],
+  three: [0.72, 0.2],
+};
+
+/* Modelele .glb deja descarcate in sesiune: schimbarea masinii nu le mai descarca. */
+const MODEL_CACHE = new Map();
+
+/* Kilometri pe zi, pentru actele urmarite doar pe km (revizie, distributie). */
+const KM_PER_DAY = 40;
+
+/* Timpul ramas pana la scadenta, in zile (actele pe km convertite grosier). */
+function remainingDays(document_) {
+  if (document_.days !== null && document_.days !== undefined) return document_.days;
+  if (document_.km_remaining !== null && document_.km_remaining !== undefined) {
+    return document_.km_remaining / 50;
+  }
+  return Infinity;
+}
+
+function hexToRgb(hex) {
+  const value = parseInt(hex.slice(1), 16);
+  return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
+}
+
+/* Numar de inmatriculare UE (banda albastra RO) desenat peste textura modelului. */
+function drawPlate(ctx, rect, width, height, text) {
+  const [u0, v0, u1, v1] = rect;
+  const x = u0 * width;
+  const y = v0 * height;
+  const w = (u1 - u0) * width;
+  const h = (v1 - v0) * height;
+  const box = (bx, by, bw, bh, r, color) => {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, r);
+    else ctx.rect(bx, by, bw, bh);
+    ctx.fill();
+  };
+  ctx.save();
+  box(x, y, w, h, h * 0.06, "#141414");
+  const inset = h * 0.036;
+  box(x + inset, y + inset, w - 2 * inset, h - 2 * inset, h * 0.04, "#eeeee8");
+  const band = w * (0.042 / 0.52);
+  box(x + inset, y + inset, band, h - 2 * inset, h * 0.03, "#10349a");
+  const bandX = x + inset + band / 2;
+  ctx.fillStyle = "#f0f0f0";
+  ctx.font = `bold ${Math.round(h * 0.2)}px Arial, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("RO", bandX, y + h * 0.74);
+  ctx.fillStyle = "#fad21e";
+  for (let k = 0; k < 12; k += 1) {
+    const angle = (k / 12) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.arc(bandX + Math.cos(angle) * h * 0.11, y + h * 0.33 + Math.sin(angle) * h * 0.11, h * 0.018, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = "#0c0c0c";
+  ctx.font = `bold ${Math.round(h * 0.7)}px "Arial Narrow", "Roboto Condensed", Arial, sans-serif`;
+  const room = w - band - w * 0.1;
+  const measured = ctx.measureText(text).width || 1;
+  ctx.translate(x + inset + band + (w - inset - band) / 2, y + h * 0.53);
+  ctx.scale(Math.min(1, room / measured), 1);
+  ctx.fillText(text, 0, 0);
+  ctx.restore();
+}
+
 class CarViewer {
   constructor(canvas, options) {
     this.canvas = canvas;
@@ -468,6 +580,15 @@ class CarViewer {
 
     this._pendingVehicle = null;
     this._currentKey = null;
+
+    this._view = null;              /* tinta animatiei de camera (butoanele de vedere) */
+    this._pauseRotateUntil = 0;
+    this._hotspots = [];
+    this._lights = { drive: false, hazard: false };
+    this._hazardOn = false;
+    this._custom = null;            /* culoarea si numarul deja aplicate pe model */
+    this._vmMaterials = [];
+    this._lampMaterials = [];
   }
 
   /* --------------------------------------------------------------- */
@@ -525,19 +646,33 @@ class CarViewer {
   /* --------------------------------------------------------------- */
   _buildEnvironment() {
     const THREE = this.THREE;
-    const size = 64;
+    const studio = this.options.lighting === "studio";
     const canvas = document.createElement("canvas");
-    canvas.width = size;
-    canvas.height = size;
+    canvas.width = studio ? 256 : 64;
+    canvas.height = studio ? 128 : 64;
     const ctx = canvas.getContext("2d");
-    const gradient = ctx.createLinearGradient(0, 0, 0, size);
-    gradient.addColorStop(0, "#1a2535");
-    gradient.addColorStop(0.45, "#0b1018");
-    gradient.addColorStop(0.5, this.options.accent);
-    gradient.addColorStop(0.56, "#0b1018");
-    gradient.addColorStop(1, "#05070b");
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    if (studio) {
+      /* studio foto: cer luminos, orizont, sol inchis si doua softbox-uri */
+      gradient.addColorStop(0, "#f4f6f8");
+      gradient.addColorStop(0.45, "#b9c0c8");
+      gradient.addColorStop(0.5, "#6d737a");
+      gradient.addColorStop(0.53, "#3a3d41");
+      gradient.addColorStop(1, "#1b1c1e");
+    } else {
+      gradient.addColorStop(0, "#1a2535");
+      gradient.addColorStop(0.45, "#0b1018");
+      gradient.addColorStop(0.5, this.options.accent);
+      gradient.addColorStop(0.56, "#0b1018");
+      gradient.addColorStop(1, "#05070b");
+    }
     ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, size, size);
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (studio) {
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(30, 10, 60, 20);
+      ctx.fillRect(150, 15, 80, 15);
+    }
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.mapping = THREE.EquirectangularReflectionMapping;
@@ -553,7 +688,8 @@ class CarViewer {
 
   _buildLights() {
     const THREE = this.THREE;
-    this.scene.add(new THREE.HemisphereLight(0x9fc4ff, 0x0a0d12, 0.55));
+    const hemi = new THREE.HemisphereLight(0x9fc4ff, 0x0a0d12, 0.55);
+    this.scene.add(hemi);
 
     const key = new THREE.DirectionalLight(0xffffff, 2.1);
     key.position.set(4, 7, 5);
@@ -571,7 +707,22 @@ class CarViewer {
     under.position.set(0, -0.35, 0);
     this.scene.add(under);
 
-    this.accentLights = { left, right, under };
+    this.accentLights = { left, right, under, hemi, key };
+    this._applyLighting();
+  }
+
+  /* "studio": lumina neutra care arata culoarea reala; "neon": luminile colorate ale temei. */
+  _applyLighting() {
+    const studio = this.options.lighting === "studio";
+    const { left, right, under, hemi, key } = this.accentLights;
+    left.intensity = studio ? 0 : 55;
+    right.intensity = studio ? 0 : 45;
+    under.intensity = studio ? 0 : 18;
+    hemi.color.set(studio ? 0xffffff : 0x9fc4ff);
+    hemi.groundColor.set(studio ? 0x3a3d41 : 0x0a0d12);
+    hemi.intensity = studio ? 0.9 : 0.55;
+    key.intensity = studio ? 2.6 : 2.1;
+    this.renderer.toneMappingExposure = studio ? 1.0 : 1.15;
   }
 
   _buildStage() {
@@ -619,6 +770,7 @@ class CarViewer {
     this.accentLights.left.color.set(this.options.accent);
     this.accentLights.right.color.set(this.options.accent2);
     this.accentLights.under.color.set(this.options.accent);
+    this._applyLighting();
     this.scene.fog.color.set(this.options.bg);
     if (this.edgeMaterial) this.edgeMaterial.color.set(this.options.accent);
 
@@ -818,6 +970,9 @@ class CarViewer {
       emissive: new THREE.Color(0xff2d3f),
       emissiveIntensity: 2.2,
     });
+    headlight.userData.vmLamp = "front";
+    taillight.userData.vmLamp = "rear";
+    this._lampMaterials.push(headlight, taillight);
     const lamp = new THREE.BoxGeometry(0.1, 0.1, 0.42);
     for (const z of [0.58, -0.58]) {
       const head = new THREE.Mesh(lamp, headlight);
@@ -835,14 +990,51 @@ class CarViewer {
   }
 
   /* --------------------------------------------------------------- */
-  async _loadModel(url) {
+  /*
+   * Descarca modelul cu progres. "no-cache" inseamna revalidare (ETag / Last-Modified):
+   * la urmatoarea deschidere serverul raspunde 304 si fisierul vine din cache-ul browserului.
+   */
+  async _fetchModel(url, onProgress) {
+    if (MODEL_CACHE.has(url)) return MODEL_CACHE.get(url);
+    const response = await fetch(url, { credentials: "same-origin", cache: "no-cache" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const total = Number(response.headers.get("content-length")) || 0;
+    let buffer;
+    if (!response.body || !total) {
+      buffer = await response.arrayBuffer();
+    } else {
+      const reader = response.body.getReader();
+      const chunks = [];
+      let loaded = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        loaded += value.length;
+        onProgress?.(Math.min(loaded / total, 1));
+      }
+      const bytes = new Uint8Array(loaded);
+      let offset = 0;
+      for (const chunk of chunks) {
+        bytes.set(chunk, offset);
+        offset += chunk.length;
+      }
+      buffer = bytes.buffer;
+    }
+    MODEL_CACHE.set(url, buffer);
+    return buffer;
+  }
+
+  async _loadModel(url, onProgress) {
     const loaderUrl = this.options.gltfLoaderSrc;
     const module = await import(/* webpackIgnore: true */ loaderUrl);
     const Loader = module.GLTFLoader;
     if (!Loader) throw new Error("GLTFLoader indisponibil");
 
+    const buffer = await this._fetchModel(url, onProgress);
+    const base = url.slice(0, url.lastIndexOf("/") + 1);
     const gltf = await new Promise((resolve, reject) => {
-      new Loader().load(url, resolve, undefined, reject);
+      new Loader().parse(buffer, base, resolve, reject);
     });
 
     const THREE = this.THREE;
@@ -874,34 +1066,309 @@ class CarViewer {
       return;
     }
 
-    const key = `${vehicle.model3d || ""}|${vehicle.colorHex}|${vehicle.bodyType || ""}`;
-    if (key === this._currentKey) return;
+    this._latestVehicle = vehicle;
+    /* modelul .glb se recoloreaza pe loc; masina procedurala se reconstruieste */
+    const key = `${vehicle.model3d || ""}|${vehicle.model3d ? "" : vehicle.colorHex}|${vehicle.bodyType || ""}`;
+    if (key === this._currentKey) {
+      this._customize(vehicle);
+      return;
+    }
     this._currentKey = key;
-
+    this._custom = null;
     this._clearCar();
     this.wheels = [];
 
-    if (vehicle.model3d) {
-      try {
-        const model = await this._loadModel(vehicle.model3d);
-        if (this.disposed || this._currentKey !== key) return;
-        this.carGroup.add(model);
-        this._kick();
-        return;
-      } catch (err) {
-        console.warn(
-          "vehicle-manager-card: modelul 3D nu a putut fi incarcat, folosesc masina procedurala",
-          err
-        );
-        if (this.disposed || this._currentKey !== key) return;
+    /* pana se descarca modelul, scena arata masina procedurala */
+    this.carGroup.add(this._buildProceduralCar(vehicle.colorHex, vehicle.bodyType));
+    this._afterCarChange();
+    if (!vehicle.model3d) return;
+
+    try {
+      this.options.onLoading?.(0);
+      const model = await this._loadModel(vehicle.model3d, (fraction) => this.options.onLoading?.(fraction));
+      if (this.disposed || this._currentKey !== key) return;
+      this._clearCar();
+      this.wheels = [];
+      this.carGroup.add(model);
+      this._collectModelMaterials(model);
+      /* actualizarile venite in timpul descarcarii au marcat masina provizorie, nu modelul */
+      this._custom = null;
+      this._customize(this._latestVehicle || vehicle);
+      this._afterCarChange();
+    } catch (err) {
+      console.warn(
+        "vehicle-manager-card: modelul 3D nu a putut fi incarcat, folosesc masina procedurala",
+        err
+      );
+    } finally {
+      if (this._currentKey === key) this.options.onLoading?.(null);
+    }
+  }
+
+  _afterCarChange() {
+    this._box = new this.THREE.Box3().setFromObject(this.carGroup);
+    this._placeHotspots();
+    this._applyLights();
+    this._kick();
+  }
+
+  /* Materialele cu metadate "vm" (modelele generate de vehicle_manager): vopsea, numar, lampi. */
+  _collectModelMaterials(model) {
+    const seen = new Set();
+    model.traverse((node) => {
+      if (!node.isMesh) return;
+      for (const material of [].concat(node.material)) {
+        if (seen.has(material) || !material.userData?.vm) continue;
+        seen.add(material);
+        this._vmMaterials.push(material);
+        if (material.emissiveMap && material.userData.vm.lamp) this._lampMaterials.push(material);
+      }
+    });
+  }
+
+  /* Culoarea vopselei si numarul de inmatriculare, aplicate pe model fara a-l regenera. */
+  _customize(vehicle) {
+    const paint = vehicle.paintHex || null;
+    const plate = String(vehicle.plate || "").trim().toUpperCase().slice(0, 12);
+    const signature = `${paint}|${plate}`;
+    if (signature === this._custom) return;
+    this._custom = signature;
+    for (const material of this._vmMaterials) {
+      const info = material.userData.vm;
+      if (info.paint === true) {
+        if (!info.originalColor) info.originalColor = material.color.clone();
+        if (paint) material.color.set(paint);
+        else material.color.copy(info.originalColor);
+      } else if (material.map?.image && info.paint_srgb) {
+        try {
+          this._repaintTexture(material, info, paint, plate);
+        } catch (err) {
+          console.warn("vehicle-manager-card: textura nu poate fi recolorata", err);
+        }
       }
     }
+    this._kick();
+  }
 
-    this.carGroup.add(this._buildProceduralCar(vehicle.colorHex, vehicle.bodyType));
+  _readPixels(image) {
+    const canvas = document.createElement("canvas");
+    canvas.width = image.width;
+    canvas.height = image.height;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    ctx.drawImage(image, 0, 0);
+    return ctx.getImageData(0, 0, canvas.width, canvas.height);
+  }
+
+  _canvasTexture(canvas, like) {
+    const texture = new this.THREE.CanvasTexture(canvas);
+    texture.flipY = like.flipY;
+    texture.colorSpace = like.colorSpace;
+    texture.wrapS = like.wrapS;
+    texture.wrapT = like.wrapT;
+    texture.anisotropy = like.anisotropy;
+    return texture;
+  }
+
+  /*
+   * Pixelii de vopsea se recunosc dupa harta metal/rugozitate (valoarea "paint_mr" din metadate);
+   * se inmultesc cu raportul culoare noua / culoare originala, deci umbrele si nervurile raman.
+   */
+  _repaintTexture(material, info, paint, plate) {
+    if (!info.base) {
+      info.base = this._readPixels(material.map.image);
+      const mr = material.roughnessMap?.image || material.metalnessMap?.image;
+      info.mask = mr ? this._readPixels(mr) : null;
+      info.canvas = document.createElement("canvas");
+      info.canvas.width = info.base.width;
+      info.canvas.height = info.base.height;
+      const old = material.map;
+      material.map = this._canvasTexture(info.canvas, old);
+      old.dispose();
+      material.needsUpdate = true;
+    }
+    const { base, mask } = info;
+    const out = new ImageData(new Uint8ClampedArray(base.data), base.width, base.height);
+    if (paint && mask && mask.width === base.width) {
+      const [pr, pg, pb] = info.paint_srgb;
+      const [, mg, mb] = info.paint_mr;
+      const [tr, tg, tb] = hexToRgb(paint);
+      const kr = tr / pr;
+      const kg = tg / pg;
+      const kb = tb / pb;
+      const d = out.data;
+      const m = mask.data;
+      for (let i = 0; i < d.length; i += 4) {
+        if (m[i] > 200 && Math.abs(m[i + 1] - mg) < 12 && Math.abs(m[i + 2] - mb) < 12) {
+          d[i] *= kr;
+          d[i + 1] *= kg;
+          d[i + 2] *= kb;
+        }
+      }
+    }
+    const ctx = info.canvas.getContext("2d");
+    ctx.putImageData(out, 0, 0);
+    if (plate && info.plate) drawPlate(ctx, info.plate, base.width, base.height, plate);
+    material.map.needsUpdate = true;
+  }
+
+  /* --------------------------------------------------------------- */
+  /* Lumini: faruri in mers, avarii cand un act a expirat             */
+  /* --------------------------------------------------------------- */
+  setLights(state) {
+    const drive = Boolean(state.drive);
+    const hazard = Boolean(state.hazard);
+    if (drive === this._lights.drive && hazard === this._lights.hazard) return;
+    this._lights = { drive, hazard };
+    clearInterval(this._hazardTimer);
+    this._hazardTimer = null;
+    this._hazardOn = hazard;
+    if (hazard && !REDUCED_MOTION) {
+      this._hazardTimer = setInterval(() => {
+        this._hazardOn = !this._hazardOn;
+        this._applyLights();
+        this._renderStill();
+      }, 520);
+    }
+    this._applyLights();
+    this._kick();
+  }
+
+  _applyLights() {
+    const main = this._lights.drive;
+    const blink = this._lights.hazard && this._hazardOn;
+    for (const material of this._lampMaterials) {
+      if (material.userData.vmLamp) {
+        /* masina procedurala: lampile doar se intensifica */
+        material.emissiveIntensity = main ? 2.4 : blink ? 1.8 : 0.35;
+        continue;
+      }
+      material.emissiveMap = this._lampTexture(material, main, blink);
+      material.emissive.set(main || blink ? 0xffffff : 0x000000);
+      material.emissiveIntensity = 2.2;
+    }
+  }
+
+  /* Masca lampilor din model (R = faruri / stopuri, G = semnalizari), colorata dupa stare. */
+  _lampTexture(material, main, indicators) {
+    const info = material.userData.vm;
+    info.lamps = info.lamps || {};
+    if (!info.lampMask) {
+      info.lampOriginal = material.emissiveMap;
+      try {
+        info.lampMask = this._readPixels(material.emissiveMap.image);
+      } catch (err) {
+        return material.emissiveMap;
+      }
+    }
+    if (!main && !indicators) return info.lampOriginal;
+    const key = `${main ? 1 : 0}${indicators ? 1 : 0}`;
+    if (info.lamps[key]) return info.lamps[key];
+    const mask = info.lampMask;
+    const out = new ImageData(mask.width, mask.height);
+    const [lr, lg, lb] = info.lamp;
+    const d = out.data;
+    const m = mask.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const a = main ? m[i] / 255 : 0;
+      const b = indicators ? m[i + 1] / 255 : 0;
+      d[i] = lr * a + 255 * b;
+      d[i + 1] = lg * a + 140 * b;
+      d[i + 2] = lb * a + 20 * b;
+      d[i + 3] = 255;
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = mask.width;
+    canvas.height = mask.height;
+    canvas.getContext("2d").putImageData(out, 0, 0);
+    info.lamps[key] = this._canvasTexture(canvas, info.lampOriginal);
+    return info.lamps[key];
+  }
+
+  /* --------------------------------------------------------------- */
+  /* Puncte de stare pe masina                                        */
+  /* --------------------------------------------------------------- */
+  setHotspots(items) {
+    const layer = this.options.hotspotLayer;
+    if (!layer) return;
+    layer.replaceChildren();
+    this._hotspots = items.map((item) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "hs";
+      button.dataset.status = item.status;
+      button.innerHTML = `<span class="hs-dot"></span><span class="hs-tip"></span>`;
+      button.querySelector(".hs-tip").textContent = item.label;
+      button.setAttribute("aria-label", item.label);
+      button.addEventListener("pointerdown", (event) => event.stopPropagation());
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        item.onClick?.();
+      });
+      layer.append(button);
+      return { ...item, el: button };
+    });
+    this._placeHotspots();
+    this._renderStill();
+  }
+
+  _placeHotspots() {
+    if (!this.THREE || !this._box || this._box.isEmpty()) return;
+    const THREE = this.THREE;
+    const size = this._box.getSize(new THREE.Vector3());
+    const min = this._box.min;
+    for (const spot of this._hotspots) {
+      const anchor = HOTSPOT_ANCHORS[spot.anchor] || HOTSPOT_ANCHORS.body;
+      const [fx, fy, fz] = anchor.at;
+      spot.world = new THREE.Vector3(min.x + (fx + 0.5) * size.x, min.y + fy * size.y, min.z + (fz + 0.5) * size.z);
+      spot.dir = new THREE.Vector3(...anchor.dir).normalize();
+    }
+  }
+
+  _updateHotspots() {
+    if (!this._hotspots.length || !this.camera) return;
+    const THREE = this.THREE;
+    const width = this.canvas.clientWidth;
+    const height = this.canvas.clientHeight;
+    const projected = new THREE.Vector3();
+    const toCamera = new THREE.Vector3();
+    for (const spot of this._hotspots) {
+      if (!spot.world) {
+        spot.el.hidden = true;
+        continue;
+      }
+      projected.copy(spot.world).project(this.camera);
+      spot.el.hidden = projected.z > 1 || Math.abs(projected.x) > 1.05 || Math.abs(projected.y) > 1.05;
+      toCamera.copy(this.camera.position).sub(spot.world).normalize();
+      spot.el.classList.toggle("behind", toCamera.dot(spot.dir) < -0.1);
+      spot.el.style.transform = `translate(${((projected.x + 1) / 2) * width}px, ${((1 - projected.y) / 2) * height}px)`;
+    }
+  }
+
+  /* Un singur cadru, cand bucla de randare e oprita (ex. clipirea avariilor). */
+  _renderStill() {
+    if (this._raf || !this.ready || this.disposed || this.visible === false || document.hidden) return;
+    this.renderer.render(this.scene, this.camera);
+    this._updateHotspots();
+  }
+
+  /* --------------------------------------------------------------- */
+  /* Butoanele de vedere                                              */
+  /* --------------------------------------------------------------- */
+  goTo(name) {
+    const view = CAMERA_VIEWS[name];
+    if (!view) return;
+    this._view = view.slice();
+    this.spin = 0;
+    /* rotirea automata asteapta putin, ca unghiul ales sa poata fi privit */
+    this._pauseRotateUntil = performance.now() + 12000;
+    clearTimeout(this._resumeTimer);
+    this._resumeTimer = setTimeout(() => this._kick(), 12100);
     this._kick();
   }
 
   _clearCar() {
+    this._vmMaterials = [];
+    this._lampMaterials = [];
     if (!this.carGroup) return;
     while (this.carGroup.children.length) {
       const child = this.carGroup.children.pop();
@@ -918,6 +1385,7 @@ class CarViewer {
   _attachPointerHandlers() {
     const onDown = (event) => {
       this._kick();
+      this._view = null;
       this.dragging = true;
       this.lastPointer = event.clientX;
       this.lastPointerY = event.clientY;
@@ -1001,9 +1469,18 @@ class CarViewer {
     if (this.disposed || this.visible === false || document.hidden) return;
     const delta = Math.min((now - this.lastFrame) / 1000 || 0, 0.1);
     this.lastFrame = now;
-    const rotating = this.options.autoRotate && !REDUCED_MOTION;
+    const rotating = this.options.autoRotate && !REDUCED_MOTION && now > this._pauseRotateUntil;
 
-    if (rotating && !this.dragging) {
+    if (this._view && !this.dragging) {
+      const [yaw, pitch] = this._view;
+      const k = REDUCED_MOTION ? 1 : Math.min(1, delta * 5);
+      const turn = Math.atan2(Math.sin(yaw - this.yaw), Math.cos(yaw - this.yaw));
+      this.yaw += turn * k;
+      this.pitch += (pitch - this.pitch) * k;
+      if (Math.abs(turn) < 0.002 && Math.abs(pitch - this.pitch) < 0.002) this._view = null;
+    }
+
+    if (rotating && !this.dragging && !this._view) {
       this.yaw += this.options.rotateSpeed * delta;
     }
     if (!this.dragging) {
@@ -1026,9 +1503,11 @@ class CarViewer {
     }
 
     this.renderer.render(this.scene, this.camera);
+    this._updateHotspots();
 
     /* fara rotire si fara interactiune, scena sta pe loc: nu mai desenam */
-    const idle = !rotating && !this.dragging && this.spin === 0 && now > (this._busyUntil || 0);
+    const idle =
+      !rotating && !this.dragging && !this._view && this.spin === 0 && now > (this._busyUntil || 0);
     if (!idle) this._raf = requestAnimationFrame((timestamp) => this._loop(timestamp));
   }
 
@@ -1039,6 +1518,8 @@ class CarViewer {
 
   dispose() {
     this.disposed = true;
+    clearInterval(this._hazardTimer);
+    clearTimeout(this._resumeTimer);
     if (this._raf) cancelAnimationFrame(this._raf);
     this.observer?.disconnect();
     this.visibility?.disconnect();
@@ -1141,13 +1622,15 @@ const THEME_DEFAULTS = {
   bg_overlay: 0.55,
   bg_blur: 0,
   language: "auto",
+  scene_light: "neon",
+  day_light: false,
 };
 
 /* Preferintele de dimensiuni si imaginea de fundal raman cand alegi o alta presetare. */
 const THEME_LAYOUT_KEYS = [
   "font_family", "font_scale", "spacing", "stage_height",
   "bg_image", "bg_target", "bg_fit", "bg_position", "bg_overlay", "bg_blur",
-  "language",
+  "language", "scene_light", "day_light",
 ];
 
 const THEME_PRESETS = [
@@ -1277,6 +1760,17 @@ const THEME_GROUPS = [
     title: "Scena 3D",
     items: [
       { key: "stage_height", type: "range", label: "Înălțime scena", min: 180, max: 640, step: 10, format: "px" },
+      {
+        key: "scene_light",
+        type: "select",
+        label: "Lumina scenei",
+        options: [
+          ["neon", "Neon (culorile temei)"],
+          ["studio", "Studio (culoarea reală a mașinii)"],
+          ["auto", "Automat: studio ziua, neon noaptea"],
+        ],
+      },
+      { key: "day_light", type: "bool", label: "Garaj nocturn: temă luminoasă ziua, întunecată noaptea" },
     ],
   },
   {
@@ -1766,6 +2260,61 @@ ha-card::before {
 }
 .chip[aria-pressed="true"] { color: var(--vm-bg); background: var(--vm-accent); border-color: var(--vm-accent); }
 
+/* puncte de stare pe masina */
+.hotspots { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.hs {
+  position: absolute; left: 0; top: 0; width: 28px; height: 28px; margin: -14px 0 0 -14px;
+  padding: 0; border: 0; background: none; cursor: pointer; pointer-events: auto;
+  transition: opacity .25s; --hs: var(--vm-dim);
+}
+.hs[data-status="ok"] { --hs: var(--vm-ok); }
+.hs[data-status="warning"] { --hs: var(--vm-warn); }
+.hs[data-status="expired"] { --hs: var(--vm-bad); }
+.hs.behind { opacity: .3; }
+.hs-dot {
+  position: absolute; inset: 8px; border-radius: 50%; background: var(--hs);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--vm-bg) 75%, transparent), 0 0 calc(10px * var(--vm-glow)) var(--hs);
+}
+.hs-dot::after {
+  content: ""; position: absolute; inset: -6px; border-radius: 50%;
+  border: 2px solid var(--hs); opacity: 0; animation: vm-hs 2.2s ease-out infinite;
+}
+.hs[data-status="ok"] .hs-dot::after { animation-duration: 3.4s; }
+@keyframes vm-hs { 0% { transform: scale(.5); opacity: .9; } 100% { transform: scale(1.7); opacity: 0; } }
+.hs-tip {
+  position: absolute; left: 50%; bottom: 30px; transform: translateX(-50%);
+  white-space: pre; padding: 6px 9px; border-radius: 8px; pointer-events: none;
+  font: 600 calc(11.5px * var(--vm-fs))/1.45 var(--vm-font, inherit); text-align: left;
+  color: var(--vm-text); background: color-mix(in srgb, var(--vm-bg) 88%, transparent);
+  border: 1px solid var(--hs); opacity: 0; transition: opacity .15s;
+}
+.hs:hover .hs-tip, .hs:focus-visible .hs-tip { opacity: 1; }
+
+/* incarcarea modelului */
+.loader {
+  position: absolute; left: 50%; bottom: 44px; transform: translateX(-50%);
+  width: min(260px, 70%); display: flex; flex-direction: column; align-items: center; gap: 7px;
+  pointer-events: none;
+}
+.ld-bar {
+  width: 100%; height: 4px; border-radius: 2px; overflow: hidden;
+  background: color-mix(in srgb, var(--vm-line) 35%, transparent);
+}
+.ld-bar span {
+  display: block; height: 100%; width: 0; transition: width .2s;
+  background: linear-gradient(90deg, var(--vm-accent), var(--vm-accent-2));
+  box-shadow: 0 0 calc(8px * var(--vm-glow)) var(--vm-accent);
+}
+.ld-txt {
+  font: calc(10.5px * var(--vm-fs))/1 var(--vm-mono); letter-spacing: .12em;
+  text-transform: uppercase; color: var(--vm-dim);
+}
+
+/* unghiurile camerei */
+.cam-views { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 4px; }
+.cam-views .chip { padding: 6px 8px; }
+.cam-views .chip:hover, .view-ar:hover { color: var(--vm-text); border-color: var(--vm-accent); }
+
 .stage-msg {
   position: absolute; inset: 0;
   display: grid; place-items: center; padding: 20px;
@@ -1801,6 +2350,16 @@ ha-card::before {
 .ring circle { fill: none; stroke-width: 3.5; stroke-linecap: round; }
 .ring .trk { stroke: var(--vm-line); }
 .ring .val { stroke: var(--vm-dim); transition: stroke-dashoffset .5s ease; }
+.ring .val.anim { animation: vm-ring-in 1.1s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes vm-ring-in { from { stroke-dashoffset: var(--c); } }
+@keyframes vm-alert {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50% {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--vm-bad) 45%, transparent),
+      0 0 calc(18px * var(--vm-glow)) color-mix(in srgb, var(--vm-bad) 35%, transparent);
+  }
+}
+.doc[data-status="expired"] { animation: vm-alert 2.4s ease-in-out infinite; }
 .doc[data-status="ok"] .ring .val { stroke: var(--vm-ok); }
 .doc[data-status="warning"] .ring .val { stroke: var(--vm-warn); }
 .doc[data-status="expired"] .ring .val { stroke: var(--vm-bad); }
@@ -2036,6 +2595,31 @@ ha-card::before {
   display: block; width: min(22px, 70%); border-radius: 5px 5px 2px 2px;
   background: linear-gradient(180deg, var(--vm-accent), color-mix(in srgb, var(--vm-accent-2) 70%, var(--vm-accent)));
 }
+.c-col .bar { gap: 2px; }
+.c-col .bar .cur { width: min(16px, 46%); }
+.c-col .bar .prev {
+  width: min(10px, 32%); border-radius: 4px 4px 2px 2px;
+  background: color-mix(in srgb, var(--vm-dim) 45%, transparent);
+}
+.c-legend {
+  display: flex; gap: 14px; justify-content: flex-end; margin: -8px 2px 12px;
+  font: calc(10.5px * var(--vm-fs))/1 var(--vm-mono); color: var(--vm-dim);
+}
+.c-legend[hidden] { display: none; }
+.c-legend span::before {
+  content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 2px;
+  margin-right: 5px; vertical-align: -1px;
+}
+.c-legend .cur::before { background: var(--vm-accent); }
+.c-legend .prev::before { background: color-mix(in srgb, var(--vm-dim) 45%, transparent); }
+.c-cats { display: grid; grid-template-columns: 120px 1fr; gap: 16px; align-items: center; margin-bottom: 14px; }
+.c-cats .c-bars { margin-bottom: 0; }
+.c-donut { width: 120px; height: 120px; transform: rotate(0deg); }
+.c-donut[hidden] { display: none; }
+.c-donut-trk { stroke: color-mix(in srgb, var(--vm-line) 25%, transparent); }
+.c-donut text { text-anchor: middle; fill: var(--vm-text); }
+.c-donut-k { font: 3px var(--vm-mono); fill: var(--vm-dim) !important; letter-spacing: .1em; text-transform: uppercase; }
+.c-donut-v { font: 700 4.6px var(--vm-font, sans-serif); }
 .c-col .lbl {
   font: calc(10px * var(--vm-fs))/1 var(--vm-mono); color: var(--vm-dim);
   text-transform: uppercase; white-space: nowrap; overflow: hidden; max-width: 100%;
@@ -2093,6 +2677,72 @@ ha-card::before {
 .btn.c-del { padding: 6px 8px; font-size: 10px; }
 .btn.c-del[data-confirm="true"] { color: var(--vm-bad); border-color: var(--vm-bad); }
 .c-empty { color: var(--vm-dim); font-size: 12px; padding: 8px 2px; }
+
+/* ---- calendarul scadentelor ---- */
+.timeline { margin-top: calc(12px * var(--vm-sp)); }
+.timeline[hidden] { display: none; }
+.tl-track {
+  position: relative; --lanes: 1;
+  height: calc(34px + var(--lanes) * 40px); margin: 6px 4px 0;
+}
+.tl-axis {
+  position: absolute; left: 0; right: 0; top: 22px; height: 2px; border-radius: 1px;
+  background: linear-gradient(90deg, var(--vm-bad), color-mix(in srgb, var(--vm-line) 70%, transparent) 9%);
+}
+.tl-overdue {
+  position: absolute; left: 0; top: 0; height: 16px; text-align: center;
+  font: calc(9.5px * var(--vm-fs))/16px var(--vm-mono); letter-spacing: .1em; text-transform: uppercase;
+  color: var(--vm-bad); white-space: nowrap; overflow: hidden;
+}
+.tl-tick, .tl-now {
+  position: absolute; top: 0; transform: translateX(-50%);
+  font: calc(9.5px * var(--vm-fs))/16px var(--vm-mono); letter-spacing: .08em; text-transform: uppercase;
+  color: var(--vm-dim); white-space: nowrap;
+}
+.tl-tick::after, .tl-now::after {
+  content: ""; position: absolute; left: 50%; top: 18px; width: 1px; height: 10px;
+  background: color-mix(in srgb, var(--vm-line) 70%, transparent);
+}
+.tl-now { color: var(--vm-accent); font-weight: 700; }
+.tl-now::after { background: var(--vm-accent); height: 12px; top: 17px; width: 2px; }
+.tl-item {
+  position: absolute; top: calc(30px + var(--lane, 0) * 40px); transform: translateX(-7px);
+  display: flex; align-items: flex-start; gap: 6px; max-width: 150px;
+  padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+  --tl: var(--vm-dim);
+}
+.tl-item[data-lane="1"] { --lane: 1; }
+.tl-item[data-lane="2"] { --lane: 2; }
+.tl-item[data-status="ok"] { --tl: var(--vm-ok); }
+.tl-item[data-status="warning"] { --tl: var(--vm-warn); }
+.tl-item[data-status="expired"] { --tl: var(--vm-bad); }
+.tl-dot {
+  flex: none; width: 14px; height: 14px; margin-top: 1px; border-radius: 50%;
+  background: var(--tl); box-shadow: 0 0 calc(8px * var(--vm-glow)) var(--tl);
+}
+.tl-item.est .tl-dot { background: transparent; border: 2px dashed var(--tl); box-sizing: border-box; }
+.tl-lbl {
+  display: flex; flex-direction: column; min-width: 0; padding: 0 4px 1px 2px; border-radius: 4px;
+  background: color-mix(in srgb, var(--vm-bg) 80%, transparent);
+}
+.tl-item[data-lane="0"] { z-index: 3; }
+.tl-item[data-lane="1"] { z-index: 2; }
+.tl-lbl b {
+  font: 600 calc(11.5px * var(--vm-fs))/1.2 var(--vm-font, inherit);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tl-lbl small { font: calc(10.5px * var(--vm-fs))/1.3 var(--vm-mono); color: var(--tl); white-space: nowrap; }
+.tl-item:hover .tl-lbl b { color: var(--vm-accent); }
+.tl-item::before {
+  content: ""; position: absolute; left: 6px; bottom: 100%; width: 2px;
+  height: calc(var(--lane, 0) * 40px + 8px); background: color-mix(in srgb, var(--tl) 55%, transparent);
+}
+@container vm (max-width: 620px) {
+  .tl-item { max-width: 96px; }
+  .tl-tick:nth-of-type(even) { visibility: hidden; }
+  .c-cats { grid-template-columns: 1fr; justify-items: center; }
+  .c-cats .c-bars { width: 100%; }
+}
 @media (max-width: 480px) {
   .c-form .c-note { grid-column: 1 / -1; }
   .c-bar { grid-template-columns: 18px minmax(70px, 100px) 1fr auto; }
@@ -2114,6 +2764,9 @@ ha-card::before {
 .vm.compact .settings,
 .vm.compact .hud,
 .vm.compact .bracket,
+.vm.compact .cam-views,
+.vm.compact .hotspots,
+.vm.compact .timeline,
 .vm.compact .stage-actions { display: none !important; }
 
 .vm.compact .top { padding-bottom: calc(10px * var(--vm-sp)); gap: 10px; }
@@ -2203,7 +2856,14 @@ ha-card::before {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .led[data-status="expired"] { animation: none; }
+  .led[data-status="expired"],
+  .doc[data-status="expired"],
+  .ring .val.anim,
+  .hs-dot::after { animation: none; }
+}
+/* pe scena ingusta, textul din coltul stanga-jos ar intra sub butoanele de vedere */
+@container vm (max-width: 560px) {
+  .hud { display: none; }
 }
 `;
 
@@ -2242,6 +2902,11 @@ class VehicleManagerCard extends HTMLElement {
       show_theme_button: true,
       show_costs_button: true,
       show_files_button: true,
+      show_hotspots: true,
+      show_lights: true,
+      show_camera_buttons: true,
+      show_ar_button: true,
+      show_timeline: true,
       compact: false,
       compact_items: 3,
       three_src: DEFAULT_THREE,
@@ -2272,6 +2937,12 @@ class VehicleManagerCard extends HTMLElement {
     if (!this._built) this._build();
     else if (LANG !== this._builtLang) this._relocalize();
     this._subscribeTheme();
+    /* modurile automate (lumina scenei, garaj nocturn) urmaresc rasaritul si apusul */
+    if (this._built && this._isNight() !== this._sunState) {
+      const theme = this._currentTheme();
+      if (theme.scene_light === "auto" || theme.day_light) this._applyTheme();
+      else this._sunState = this._isNight();
+    }
     this._update();
   }
 
@@ -2433,10 +3104,19 @@ class VehicleManagerCard extends HTMLElement {
             <span class="bracket tr"></span>
             <span class="bracket bl"></span>
             <span class="bracket br"></span>
+            <div class="hotspots"></div>
+            <div class="loader" hidden><span class="ld-bar"><span></span></span><span class="ld-txt"></span></div>
             <div class="hud"></div>
             <div class="stage-actions">
+              <button class="chip view-ar" hidden title="${t("Vezi mașina în realitate augmentată")}">AR</button>
               <button class="chip view-3d" aria-pressed="true">3D</button>
               <button class="chip view-photo" aria-pressed="false">${t("Poza")}</button>
+            </div>
+            <div class="cam-views" role="group" aria-label="${t("Unghi cameră")}">
+              <button class="chip" data-view="front">${t("Față")}</button>
+              <button class="chip" data-view="side">${t("Profil")}</button>
+              <button class="chip" data-view="rear">${t("Spate")}</button>
+              <button class="chip" data-view="three">3/4</button>
             </div>
           </section>
 
@@ -2447,6 +3127,11 @@ class VehicleManagerCard extends HTMLElement {
             <div class="doc-list"></div>
           </section>
         </div>
+
+        <section class="panel timeline" hidden>
+          <h3>${t("Calendar scadențe")}</h3>
+          <div class="tl-track"></div>
+        </section>
 
         <footer class="foot">
           <span class="foot-left"></span>
@@ -2489,6 +3174,12 @@ class VehicleManagerCard extends HTMLElement {
       stageMsg: card.querySelector(".stage-msg"),
       hud: card.querySelector(".hud"),
       view3d: card.querySelector(".view-3d"),
+      viewAr: card.querySelector(".view-ar"),
+      hotspots: card.querySelector(".hotspots"),
+      loader: card.querySelector(".loader"),
+      camViews: card.querySelector(".cam-views"),
+      timeline: card.querySelector(".timeline"),
+      tl: card.querySelector(".tl-track"),
       viewPhoto: card.querySelector(".view-photo"),
       footLeft: card.querySelector(".foot-left"),
       footRight: card.querySelector(".foot-right"),
@@ -2506,6 +3197,11 @@ class VehicleManagerCard extends HTMLElement {
     );
 
     this._el.view3d.addEventListener("click", () => this._setPhotoMode(false));
+    this._el.viewAr.addEventListener("click", () => this._openAr());
+    this._el.camViews.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-view]");
+      if (button) this._viewer?.goTo(button.dataset.view);
+    });
     this._el.viewPhoto.addEventListener("click", () => this._setPhotoMode(true));
 
     /* in modul compact, numele si sageata duc la pagina cu cardul complet */
@@ -2844,7 +3540,11 @@ class VehicleManagerCard extends HTMLElement {
       </div>
       <div class="c-tiles"></div>
       <div class="c-chart"></div>
-      <div class="c-bars"></div>
+      <div class="c-legend" hidden></div>
+      <div class="c-cats">
+        <svg class="c-donut" viewBox="0 0 42 42" aria-hidden="true"></svg>
+        <div class="c-bars"></div>
+      </div>
       <form class="c-form">
         <label><span>${t("Data")}</span><input type="date" name="date" required></label>
         <label><span>${t("Categorie")}</span><select name="category"></select></label>
@@ -2955,33 +3655,66 @@ class VehicleManagerCard extends HTMLElement {
     }
   }
 
-  _renderCostChart(items, period) {
+  /* Pe luni pentru un an (cu anul anterior alaturi, estompat) sau pe ani pentru tot istoricul. */
+  _renderCostChart(items, period, all) {
     const chart = this._el.costs.querySelector(".c-chart");
+    const legend = this._el.costs.querySelector(".c-legend");
+    const sumOf = (prefix) => all.filter((e) => e.date.startsWith(prefix)).reduce((a, e) => a + e.amount, 0);
     let buckets;
+    let compare = false;
     if (period === "all") {
       const years = [...new Set(items.map((e) => e.date.slice(0, 4)))].sort();
-      buckets = years.map((year) => [year, items.filter((e) => e.date.startsWith(year)).reduce((a, e) => a + e.amount, 0)]);
+      buckets = years.map((year) => [year, sumOf(year), 0]);
     } else {
+      const previous = String(Number(period) - 1);
       const month = new Intl.DateTimeFormat(uiLocale(this._hass), { month: "short" });
       buckets = Array.from({ length: 12 }, (_, i) => {
-        const key = `${period}-${String(i + 1).padStart(2, "0")}`;
-        const total = items.filter((e) => e.date.startsWith(key)).reduce((a, e) => a + e.amount, 0);
-        return [month.format(new Date(Number(period), i, 1)).replace(".", ""), total];
+        const mm = String(i + 1).padStart(2, "0");
+        return [month.format(new Date(Number(period), i, 1)).replace(".", ""), sumOf(`${period}-${mm}`), sumOf(`${previous}-${mm}`)];
       });
+      compare = buckets.some(([, , prev]) => prev > 0);
+      legend.innerHTML = `<span class="cur"></span><span class="prev"></span>`;
+      legend.querySelector(".cur").textContent = period;
+      legend.querySelector(".prev").textContent = previous;
     }
-    const max = Math.max(0, ...buckets.map(([, total]) => total));
+    legend.hidden = !compare;
+    const max = Math.max(0, ...buckets.flatMap(([, total, prev]) => [total, compare ? prev : 0]));
     chart.hidden = !max;
+    const height = (value) => `${max ? Math.max(value ? 3 : 0, (value / max) * 100) : 0}%`;
     chart.replaceChildren(
-      ...buckets.map(([label, total]) => {
+      ...buckets.map(([label, total, prev]) => {
         const col = document.createElement("div");
         col.className = "c-col";
-        col.title = `${label}: ${this._money(total)}`;
-        col.innerHTML = `<span class="bar"><span></span></span><span class="lbl"></span>`;
-        col.querySelector(".bar span").style.height = `${max ? Math.max(total ? 3 : 0, (total / max) * 100) : 0}%`;
+        col.title = compare
+          ? `${label}: ${this._money(total)} (${this._money(prev)})`
+          : `${label}: ${this._money(total)}`;
+        col.innerHTML = `<span class="bar">${compare ? `<span class="prev"></span>` : ""}<span class="cur"></span></span><span class="lbl"></span>`;
+        col.querySelector(".cur").style.height = height(total);
+        if (compare) col.querySelector(".prev").style.height = height(prev);
         col.querySelector(".lbl").textContent = label;
         return col;
       })
     );
+  }
+
+  /* Inelul pe categorii, cu totalul in mijloc. */
+  _renderCostDonut(ranked) {
+    const svg = this._el.costs.querySelector(".c-donut");
+    const total = ranked.reduce((a, [, amount]) => a + amount, 0);
+    svg.hidden = !total;
+    if (!total) return;
+    const radius = 15.9155; /* circumferinta 100: procentele devin lungimi */
+    let offset = 25;
+    const parts = ranked.map(([key, amount]) => {
+      const share = (amount / total) * 100;
+      const piece = `<circle cx="21" cy="21" r="${radius}" fill="none" stroke="${categoryColor(key)}" stroke-width="5"
+        stroke-dasharray="${Math.max(share - 0.6, 0.2).toFixed(2)} ${(100 - share + 0.6).toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}"></circle>`;
+      offset -= share;
+      return piece;
+    });
+    svg.innerHTML = `<circle cx="21" cy="21" r="${radius}" fill="none" class="c-donut-trk" stroke-width="5"></circle>${parts.join("")}
+      <text x="21" y="20" class="c-donut-k">${t("Total")}</text><text x="21" y="25.5" class="c-donut-v"></text>`;
+    svg.querySelector(".c-donut-v").textContent = this._money(total).replace(/[.,]\d\d(?=\D*$)/, "");
   }
 
   async _deleteExpense(button, expense) {
@@ -3061,6 +3794,21 @@ class VehicleManagerCard extends HTMLElement {
     }
     const consumptionById = new Map(segments.map((seg) => [seg.id, seg.consumption]));
 
+    /* comparatia cu anul trecut si costul pe km (km din kilometrajul trecut pe bonuri) */
+    if (costs.year !== "all") {
+      const previous = String(Number(costs.year) - 1);
+      const prevSum = sum(all.filter((e) => e.date.startsWith(`${previous}-`)));
+      if (prevSum > 0) {
+        const change = ((sum(items) - prevSum) / prevSum) * 100;
+        tiles.push([t("Față de {year}", { year: previous }), `${change > 0 ? "+" : ""}${formatNumber(Math.round(change))}%`]);
+      }
+    }
+    const mileages = items.map((e) => e.mileage).filter((m) => m !== null && m !== undefined && m > 0);
+    const driven = mileages.length > 1 ? Math.max(...mileages) - Math.min(...mileages) : 0;
+    if (driven > 0) {
+      tiles.push([t("Cost pe km"), this._money(sum(items) / driven)], [t("Km parcurși (bonuri)"), `${formatNumber(driven)} km`]);
+    }
+
     root.querySelector(".c-tiles").replaceChildren(
       ...tiles.map(([key, value]) => {
         const tile = document.createElement("div");
@@ -3072,13 +3820,14 @@ class VehicleManagerCard extends HTMLElement {
       })
     );
 
-    /* pe luni (anul ales) sau pe ani (toti anii) */
-    this._renderCostChart(costs.year === "all" ? all : items, costs.year);
+    /* pe luni (anul ales, cu anul trecut alaturi) sau pe ani (toti anii) */
+    this._renderCostChart(costs.year === "all" ? all : items, costs.year, all);
 
     /* pe categorii */
     const byCategory = new Map();
     for (const e of items) byCategory.set(e.category, (byCategory.get(e.category) || 0) + e.amount);
     const ranked = [...byCategory.entries()].sort((a, b) => b[1] - a[1]);
+    this._renderCostDonut(ranked);
     const max = ranked.length ? ranked[0][1] : 0;
     root.querySelector(".c-bars").replaceChildren(
       ...ranked.map(([key, amount]) => {
@@ -3195,10 +3944,29 @@ class VehicleManagerCard extends HTMLElement {
     return this._themeDraft || this._baseTheme();
   }
 
+  /* Starea soarelui (sun.sun) decide modurile automate: zi = studio / tema luminoasa. */
+  _isNight() {
+    return this._hass?.states["sun.sun"]?.state === "below_horizon";
+  }
+
+  _sceneLighting(theme) {
+    if (theme.scene_light !== "auto") return theme.scene_light;
+    return this._isNight() ? "neon" : "studio";
+  }
+
+  /* "Garaj nocturn": ziua culorile presetarii Light, noaptea tema aleasa. */
+  _effectiveTheme() {
+    const theme = this._currentTheme();
+    if (!theme.day_light || this._isNight() || theme.follow_ha) return theme;
+    const light = THEME_PRESETS.find((preset) => preset.id === "light");
+    return { ...theme, ...light.values };
+  }
+
   _applyTheme() {
     const el = this._el;
     if (!el) return;
-    const theme = this._currentTheme();
+    const theme = this._effectiveTheme();
+    this._sunState = this._isNight();
 
     for (const [name, value] of Object.entries(themeToCss(theme))) {
       el.card.style.setProperty(name, value);
@@ -3208,7 +3976,7 @@ class VehicleManagerCard extends HTMLElement {
 
     /* three.js reface mediul si scena doar cand se schimba culorile */
     const colors = this._sceneColors(theme);
-    const colorKey = `${colors.accent}|${colors.accent2}|${colors.bg}`;
+    const colorKey = `${colors.accent}|${colors.accent2}|${colors.bg}|${colors.lighting}`;
     if (this._viewer && colorKey !== this._sceneColorKey) {
       this._sceneColorKey = colorKey;
       this._viewer.setTheme(colors);
@@ -3226,6 +3994,7 @@ class VehicleManagerCard extends HTMLElement {
       accent: read("--vm-accent", theme.accent),
       accent2: read("--vm-accent-2", theme.accent2),
       bg: read("--vm-bg", theme.bg),
+      lighting: this._sceneLighting(theme),
     };
   }
 
@@ -3515,14 +4284,18 @@ class VehicleManagerCard extends HTMLElement {
     this._sceneColorKey = null;
     const base = config.three_src || DEFAULT_THREE;
     this._viewer = new CarViewer(this._el.canvas, {
-      ...this._sceneColors(this._currentTheme()),
+      ...this._sceneColors(this._effectiveTheme()),
       threeSrc: base,
       gltfLoaderSrc:
         config.gltf_loader_src ||
         (base === DEFAULT_THREE ? DEFAULT_GLTF_LOADER : `${base}/examples/jsm/loaders/GLTFLoader.js`),
       autoRotate: config.auto_rotate !== false,
       rotateSpeed: Number(config.rotate_speed) || 0.35,
+      hotspotLayer: this._el.hotspots,
+      onLoading: (fraction) => this._setLoading(fraction),
     });
+    this._hotspotKey = null;
+    this._lastDocuments = null;
 
     try {
       await this._viewer.init();
@@ -3543,6 +4316,31 @@ class VehicleManagerCard extends HTMLElement {
     this._el.stageMsg.hidden = false;
     this._el.stageMsg.textContent =
       t("Modelul 3D nu a putut fi încărcat (biblioteca three.js nu este accesibilă). Adaugă o poză vehiculului sau setează three_src către o copie locală.");
+  }
+
+  _setLoading(fraction) {
+    const loader = this._el?.loader;
+    if (!loader) return;
+    loader.hidden = fraction === null;
+    if (fraction === null) return;
+    const percent = Math.round(fraction * 100);
+    loader.querySelector(".ld-bar span").style.width = `${percent}%`;
+    loader.querySelector(".ld-txt").textContent = t("Se încarcă modelul 3D… {p}%", { p: percent });
+  }
+
+  /*
+   * Realitate augmentata pe Android: Scene Viewer (Google) deschide modelul .glb la marime reala.
+   * Fisierul trebuie sa fie accesibil fara autentificare (ex. /local/...).
+   */
+  _openAr() {
+    if (!this._model3d) return;
+    const file = new URL(this._model3d, location.origin).href;
+    const title = this._el.title.textContent || "Vehicul";
+    const query = `file=${encodeURIComponent(file)}&mode=ar_preferred&resizable=false&title=${encodeURIComponent(title)}`;
+    window.location.href =
+      `intent://arvr.google.com/scene-viewer/1.0?${query}#Intent;scheme=https;` +
+      `package=com.google.ar.core;action=android.intent.action.VIEW;` +
+      `S.browser_fallback_url=${encodeURIComponent(file)};end;`;
   }
 
   _setPhotoMode(enabled) {
@@ -3569,6 +4367,11 @@ class VehicleManagerCard extends HTMLElement {
     el.viewPhoto.hidden = !showToggle;
     el.view3d.setAttribute("aria-pressed", String(!showPhoto));
     el.viewPhoto.setAttribute("aria-pressed", String(Boolean(showPhoto)));
+    const show3d = !showPhoto && canUse3d;
+    el.camViews.hidden = !show3d || this._config.show_camera_buttons === false;
+    el.hotspots.hidden = !show3d;
+    el.viewAr.hidden = !show3d || !this._model3d || this._config.show_ar_button === false ||
+      !/Android/i.test(navigator.userAgent || "");
 
     if (canUse3d || photo) el.stageMsg.hidden = true;
   }
@@ -3671,7 +4474,9 @@ class VehicleManagerCard extends HTMLElement {
         .map((row) => this._renderSpec(row, vehicle, entities))
     );
 
-    /* --- acte --- */
+    /* --- acte (inelele se umplu animat doar cand se schimba vehiculul) --- */
+    this._animateRings = this._animatedFor !== this._selected;
+    this._animatedFor = this._selected;
     el.docList.replaceChildren(
       ...this._visibleDocuments(documents).map((document_) =>
         this._renderDocument(document_, entities, language)
@@ -3697,14 +4502,25 @@ class VehicleManagerCard extends HTMLElement {
 
     /* --- scena --- */
     this._currentPhoto = attributes.photo || null;
+    this._model3d = attributes.model_3d || null;
+    const paintHex = /^#[0-9a-f]{6}$/i.test(vehicle.color_hex || "") ? vehicle.color_hex : null;
     this._viewer?.setVehicle({
-      model3d: attributes.model_3d || null,
+      model3d: this._model3d,
       colorHex: vehicle.color_hex || "#9aa4af",
+      paintHex,
+      plate: vehicle.license_plate || "",
       bodyType:
         this._config.body_type && this._config.body_type !== "auto"
           ? this._config.body_type
           : guessBodyType(vehicle),
     });
+    const lights = this._config.show_lights !== false;
+    this._viewer?.setLights({
+      drive: lights && vehicle.parking?.state === "driving",
+      hazard: lights && status === "expired",
+    });
+    this._renderHotspots(documents, entities);
+    this._renderTimeline(documents, entities);
     this._applyStageSource();
 
     el.hud.textContent = attributes.model_3d
@@ -3755,11 +4571,9 @@ class VehicleManagerCard extends HTMLElement {
       tiles.push([t("Consum"), `${formatNumber(Number(fuel.state))} ${fuel.attributes.unit_of_measurement || ""}`]);
     }
     /* urmatoarea scadenta dintre actele afisate */
-    const remaining = (d) =>
-      d.days ?? (d.km_remaining !== null && d.km_remaining !== undefined ? d.km_remaining / 50 : Infinity);
     const next = this._visibleDocuments(documents)
       .filter((d) => d.status !== "unknown")
-      .sort((a, b) => remaining(a) - remaining(b))[0];
+      .sort((a, b) => remainingDays(a) - remainingDays(b))[0];
     if (next) tiles.push([t("Urmează"), `${t(next.label)} · ${shortRemaining(next)}`, next.status]);
 
     this._el.mini.hidden = !tiles.length;
@@ -3823,6 +4637,115 @@ class VehicleManagerCard extends HTMLElement {
 
   _shortRemaining(document_) {
     return shortRemaining(document_);
+  }
+
+  /* Punctele de stare de pe modelul 3D: cate unul pe zona, cu starea celui mai urgent act. */
+  _renderHotspots(documents, entities) {
+    if (!this._viewer) return;
+    const groups = new Map();
+    if (this._config.show_hotspots !== false && !this._config.compact) {
+      for (const document_ of this._visibleDocuments(documents)) {
+        if (document_.status === "unknown") continue;
+        const anchor = DOC_ANCHOR[document_.key] || "body";
+        if (!groups.has(anchor)) groups.set(anchor, []);
+        groups.get(anchor).push(document_);
+      }
+    }
+    const items = [...groups.entries()].map(([anchor, docs]) => {
+      docs.sort(
+        (a, b) => (STATUS_RANK[a.status] ?? 9) - (STATUS_RANK[b.status] ?? 9) || remainingDays(a) - remainingDays(b)
+      );
+      const worst = docs[0];
+      return {
+        anchor,
+        status: worst.status,
+        label: docs.map((d) => `${t(d.label)}: ${shortRemaining(d)}`).join("\n"),
+        entity: entities[`${worst.key}_date`] || entities[`${worst.key}_km`] || null,
+      };
+    });
+    const key = JSON.stringify(items);
+    if (key === this._hotspotKey) return;
+    this._hotspotKey = key;
+    this._viewer.setHotspots(items.map((item) => ({ ...item, onClick: () => moreInfo(this, item.entity) })));
+  }
+
+  /*
+   * Calendarul scadentelor pe 12 luni. Actele urmarite doar pe km primesc o data estimata
+   * (KM_PER_DAY) si sunt marcate punctat.
+   */
+  _renderTimeline(documents, entities) {
+    const section = this._el.timeline;
+    const show = this._config.show_timeline !== false && !this._config.compact;
+    const items = this._visibleDocuments(documents)
+      .filter((d) => d.status !== "unknown")
+      .map((d) => {
+        if (d.days !== null && d.days !== undefined) return { doc: d, days: d.days, estimated: false };
+        if (d.km_remaining === null || d.km_remaining === undefined) return null;
+        return { doc: d, days: Math.round(d.km_remaining / KM_PER_DAY), estimated: true };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.days - b.days);
+    section.hidden = !show || !items.length;
+    if (section.hidden) return;
+
+    const OVERDUE = 8; /* procentul din latime rezervat actelor expirate */
+    const pos = (days) => (days < 0 ? OVERDUE / 2 : OVERDUE + (Math.min(days, 365) / 365) * (98 - OVERDUE));
+    const language = uiLocale(this._hass);
+    const monthName = new Intl.DateTimeFormat(language, { month: "short" });
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const nodes = [];
+    const axis = document.createElement("div");
+    axis.className = "tl-axis";
+    nodes.push(axis);
+    const overdue = document.createElement("div");
+    overdue.className = "tl-overdue";
+    overdue.style.width = `${OVERDUE}%`;
+    overdue.textContent = t("expirate");
+    nodes.push(overdue);
+    for (let i = 1; i <= 12; i += 1) {
+      const month = new Date(today.getFullYear(), today.getMonth() + i, 1);
+      const days = Math.round((month - today) / 86400000);
+      if (days > 365) break;
+      const tick = document.createElement("span");
+      tick.className = "tl-tick";
+      tick.style.left = `${pos(days)}%`;
+      tick.textContent = monthName.format(month).replace(".", "");
+      if (month.getMonth() === 0) tick.textContent += ` ${month.getFullYear()}`;
+      nodes.push(tick);
+    }
+    const now = document.createElement("span");
+    now.className = "tl-now";
+    now.style.left = `${OVERDUE}%`;
+    now.textContent = t("azi");
+    nodes.push(now);
+
+    /* etichetele apropiate se aseaza pe randuri diferite */
+    const lanes = [];
+    let usedLanes = 1;
+    for (const { doc, days, estimated } of items) {
+      const x = pos(days);
+      let lane = lanes.findIndex((last) => x - last > 13);
+      if (lane === -1) lane = lanes.length < 3 ? lanes.length : lanes.indexOf(Math.min(...lanes));
+      lanes[lane] = x;
+      usedLanes = Math.max(usedLanes, lane + 1);
+      const node = document.createElement("button");
+      node.type = "button";
+      node.className = `tl-item${estimated ? " est" : ""}`;
+      node.dataset.status = doc.status;
+      node.dataset.lane = String(lane);
+      node.style.left = `${x}%`;
+      node.title = estimated ? t("estimat după kilometri") : formatDate(doc.date, language);
+      node.innerHTML = `<span class="tl-dot"></span><span class="tl-lbl"><b></b><small></small></span>`;
+      node.querySelector("b").textContent = t(doc.label);
+      node.querySelector("small").textContent = `${estimated ? "≈ " : ""}${shortRemaining(doc)}`;
+      const entityId = entities[`${doc.key}_date`] || entities[`${doc.key}_km`] || null;
+      node.addEventListener("click", () => moreInfo(this, entityId));
+      nodes.push(node);
+    }
+    this._el.tl.style.setProperty("--lanes", String(usedLanes));
+    this._el.tl.replaceChildren(...nodes);
   }
 
   _renderParking(row, parking) {
@@ -3962,7 +4885,8 @@ class VehicleManagerCard extends HTMLElement {
       <span class="ring">
         <svg viewBox="0 0 44 44" aria-hidden="true">
           <circle class="trk" cx="22" cy="22" r="${radius}"></circle>
-          <circle class="val" cx="22" cy="22" r="${radius}"
+          <circle class="val${this._animateRings && !REDUCED_MOTION ? " anim" : ""}" cx="22" cy="22" r="${radius}"
+                  style="--c: ${circumference.toFixed(2)}"
                   stroke-dasharray="${circumference.toFixed(2)}"
                   stroke-dashoffset="${offset.toFixed(2)}"></circle>
         </svg>
@@ -4025,6 +4949,17 @@ const editorSchema = () => [
       { name: "compact_items", selector: { number: { min: 1, max: 5, mode: "box" } } },
     ],
   },
+  {
+    type: "grid",
+    name: "",
+    schema: [
+      { name: "show_hotspots", selector: { boolean: {} } },
+      { name: "show_lights", selector: { boolean: {} } },
+      { name: "show_camera_buttons", selector: { boolean: {} } },
+      { name: "show_ar_button", selector: { boolean: {} } },
+      { name: "show_timeline", selector: { boolean: {} } },
+    ],
+  },
   { name: "navigation_path", selector: { navigation: {} } },
   {
     name: "body_type",
@@ -4076,6 +5011,11 @@ const EDITOR_LABELS = {
   show_files_button: "Buton Dosar (poze și PDF-uri cu actele)",
   compact: "Mod compact (pentru pagina principală)",
   compact_items: "Acte afișate în modul compact",
+  show_hotspots: "Puncte de stare pe mașină",
+  show_lights: "Lumini: faruri în mers, avarii la acte expirate",
+  show_camera_buttons: "Butoane pentru unghiul camerei",
+  show_ar_button: "Buton realitate augmentată (Android)",
+  show_timeline: "Calendarul scadențelor",
   navigation_path: "Pagina deschisă din modul compact (ex. /lovelace/mașini)",
   documents: "Acte afișate (nimic bifat: cele 5 de bază + actele completate)",
   specs: "Caracteristici afișate (nimic bifat: toate)",

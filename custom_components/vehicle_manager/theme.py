@@ -91,6 +91,10 @@ THEME_SCHEMA = vol.Schema(
         vol.Optional("bg_blur"): _number(0, 20),
         # limba cardurilor: "auto" = limba din Home Assistant
         vol.Optional("language"): vol.In(("auto", "ro", "en")),
+        # lumina scenei 3D; "auto" urmeaza sun.sun (studio ziua, neon noaptea)
+        vol.Optional("scene_light"): vol.In(("neon", "studio", "auto")),
+        # "garaj nocturn": tema luminoasa ziua, tema aleasa noaptea
+        vol.Optional("day_light"): bool,
     },
     extra=vol.REMOVE_EXTRA,
 )

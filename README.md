@@ -87,6 +87,11 @@ listeaza in meniul drop-down din partea de sus.
 | `show_theme_button` | `true` | Arata butonul **Themes** din bara de sus. |
 | `show_costs_button` | `true` | Arata butonul **Costuri** din bara de sus. |
 | `show_files_button` | `true` | Arata butonul **Dosar** din bara de sus. |
+| `show_hotspots` | `true` | Punctele de stare ale actelor, desenate pe masina in scena 3D. |
+| `show_lights` | `true` | Farurile se aprind cand masina e in mers, avariile clipesc cand un act a expirat. |
+| `show_camera_buttons` | `true` | Butoanele **Fata / Profil / Spate / 3/4** din scena. |
+| `show_ar_button` | `true` | Butonul **AR** (doar pe Android, doar cu model `.glb`). |
+| `show_timeline` | `true` | Calendarul scadentelor pe 12 luni, sub card. |
 | `compact` | `false` | Mod compact pentru pagina principala (vezi mai jos). |
 | `compact_items` | `3` | Cate acte se afiseaza in modul compact (1 - 5). |
 | `navigation_path` | - | In modul compact, pagina deschisa la atingerea numelui (ex. `/lovelace/masini`). |
@@ -151,8 +156,11 @@ Butonul **Costuri** din bara de sus deschide istoricul cheltuielilor vehiculului
 ![Panoul Costuri](https://raw.githubusercontent.com/alinalecu2013/ha-vehicle-manager/main/images/costs.png)
 
 - totalul pe anul ales, totalul general si numarul de cheltuieli;
-- un grafic pe categorii (RCA, ITP, rovinieta, revizie, distributie, reparatii, anvelope,
-  combustibil, spalare, parcare, amenzi, taxe si impozit, accesorii, altele);
+- comparatia cu anul trecut (**Fata de 2025: +12%**) si **costul pe km**, calculat din
+  kilometrajul trecut pe bonuri;
+- graficul pe luni, cu anul trecut alaturi (bare gri) ca sa vezi lunile mai scumpe;
+- un inel si un grafic pe categorii (RCA, ITP, rovinieta, revizie, distributie, reparatii,
+  anvelope, combustibil, spalare, parcare, amenzi, taxe si impozit, accesorii, altele);
 - formular de adaugare: data (implicit azi), categoria, suma, kilometrajul (implicit cel
   curent) si o nota;
 - lista cheltuielilor, filtrabila pe ani, cu stergere (al doilea click confirma);
@@ -232,7 +240,11 @@ Butonul **Themes** din bara de sus deschide meniul de personalizare direct din d
 - **Text:** familia de font si dimensiunea (75% - 160%).
 - **Aspect:** spatiere, rotunjirea colturilor, opacitatea si estomparea panourilor,
   intensitatea stralucirii, grila de fundal.
-- **Scena 3D:** inaltimea scenei (culorile scenei urmeaza tema).
+- **Scena 3D:** inaltimea scenei si **lumina scenei**: *Neon* (luminile colorate ale temei),
+  *Studio* (lumina neutra, arata culoarea reala a masinii) sau *Automat* (studio ziua, neon
+  noaptea, dupa `sun.sun`).
+- **Garaj nocturn:** ziua cardul foloseste culorile presetarii *Light*, iar dupa apus tema
+  aleasa (tot dupa `sun.sun`).
 - **Imagine de fundal:** incarca o poza direct din card (de pe telefon sau PC) sau
   foloseste un URL (`/local/fundal.jpg`, `https://...`). Se poate afisa pe tot cardul
   sau doar in scena 3D, cu incadrare (umple / potriveste / mozaic), pozitie, acoperire
@@ -249,6 +261,13 @@ live in toate dashboard-urile deschise. **Renunta** revine la tema salvata, iar
 
 - **Drop-down sus:** schimba vehiculul (selectia e retinuta in browser).
 - **Trage cu mouse-ul/degetul** peste scena: rotire manuala, cu inertie.
+- **Fata / Profil / Spate / 3/4** (jos in scena): camera se muta lin in unghiul ales; rotirea
+  automata asteapta 12 secunde.
+- **Punctele de pe masina:** fiecare zona (parbriz: ITP si rovinieta, capota: revizie si
+  distributie, roata: anvelope, flanc: RCA si CASCO, plafon: impozit, portbagaj: trusa si
+  extinctor) are culoarea celui mai urgent act; atingerea deschide actul.
+- **Calendar scadente:** toate actele pe 12 luni; actele urmarite doar pe km (revizie,
+  distributie) au o data estimata (~40 km/zi), marcata punctat.
 - **Click pe un act:** deschide entitatea `date` corespunzatoare, deci poti schimba data pe loc.
 - **Click pe kilometraj:** deschide entitatea `number`, deci poti actualiza km-ul pe loc.
 - **Rotita din dreapta sus:** deschide pagina integrarii pentru editare completa.
@@ -275,6 +294,27 @@ npx @gltf-transform/cli optimize masina.glb masina_optimizat.glb   --compress qu
 
 `quantize` e citit direct de three.js (fara decodoare suplimentare); nu folosi `draco` sau
 `meshopt`, cardul nu le incarca. Exemplu: un Citroen C3 a scazut de la 20 MB la 4 MB.
+
+**Incarcare.** Cat se descarca modelul, scena arata masina desenata si o bara de progres.
+Modelul ramane in memorie cat timp e deschis dashboardul, iar la urmatoarea deschidere
+browserul il ia din cache (serverul confirma doar ca nu s-a schimbat).
+
+**Modelul Opel Astra H Caravan.** In `models/astra_caravan/` e un generator pentru un Astra H
+break la cotele oficiale (4515 x 1794 x 1500 mm, ampatament 2703 mm), cu texturi PBR. Modelele
+generate astfel au metadate pe care cardul le foloseste la rulare:
+
+- **culoarea vopselei** este cea a vehiculului (`#b0162a`, `Rosu`...), aplicata pe loc;
+- **numarul de inmatriculare** de pe placute este cel din configurarea vehiculului;
+- **farurile si stopurile** se aprind in mers, iar **avariile** clipesc cand un act a expirat.
+
+Pentru telefon exista varianta `--mobil` (texturi WebP la jumatate de rezolutie: fisier mai
+mic si de ~4 ori mai putina memorie video). Detalii in
+[models/astra_caravan/README.md](models/astra_caravan/README.md).
+
+**Realitate augmentata (Android).** Butonul **AR** deschide modelul in Google Scene Viewer,
+la marime reala. Scene Viewer descarca fisierul singur, deci modelul trebuie sa fie accesibil
+fara autentificare (de ex. in `config/www`, adica `/local/masina.glb`) si telefonul trebuie
+sa aiba Google Play Services for AR.
 
 three.js e inclus in integrare si se incarca local, deci scena 3D merge si fara internet.
 
