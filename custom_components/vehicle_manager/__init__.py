@@ -18,6 +18,7 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.typing import ConfigType
 from homeassistant.util import dt as dt_util
 
 from .const import (
@@ -77,6 +78,10 @@ DATA_SERVICES = "services_registered"
 DATA_MILEAGE = "mileage_trackers"
 DATA_PARKING = "parking_trackers"
 
+# Fara optiuni YAML; `vehicle_manager:` in configuration.yaml doar incarca
+# integrarea (si cardul) inainte de primul vehicul.
+CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
+
 
 def add_months(start: date, months: int) -> date:
     """Adauga un numar de luni la o data, fara dependente externe."""
@@ -90,6 +95,12 @@ def add_months(start: date, months: int) -> date:
 # ----------------------------------------------------------------------
 # Setup
 # ----------------------------------------------------------------------
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Incarca cardul cand se incarca integrarea, nu abia la primul vehicul."""
+    await _async_register_frontend(hass)
+    return True
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Configureaza un vehicul."""
     domain_data = hass.data.setdefault(DOMAIN, {})
@@ -205,8 +216,12 @@ async def _async_register_frontend(hass: HomeAssistant) -> None:
     # Daca cardul e instalat separat din HACS (categoria Dashboard), HACS il
     # incarca drept resursa Lovelace; copia inclusa aici nu se mai incarca,
     # altfel ar castiga mereu ea (se incarca prima) si ar ignora versiunea HACS.
+    # Se verifica fisierul, nu folderul: un folder ramas gol dupa o dezinstalare
+    # HACS ar opri copia inclusa fara ca vreun card sa se mai incarce.
     hacs_card = Path(hass.config.path("www", "community", HACS_CARD_REPO))
-    if await hass.async_add_executor_job(hacs_card.is_dir):
+    hacs_js = hacs_card / CARD_FILENAME
+    hacs_gz = hacs_card / f"{CARD_FILENAME}.gz"
+    if await hass.async_add_executor_job(lambda: hacs_js.is_file() or hacs_gz.is_file()):
         _LOGGER.info(
             "Cardul este instalat din HACS (%s); copia inclusă în integrare nu se încarcă",
             hacs_card,

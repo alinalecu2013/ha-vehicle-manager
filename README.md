@@ -62,6 +62,16 @@ Daca ai adaugat anterior resursa manual, sterge-o. Daca dupa o actualizare cardu
 telefon, in aplicatia Companion: **Setari &rsaquo; Companion app &rsaquo; Depanare &rsaquo;
 Reset frontend cache**.
 
+**„Custom element doesn't exist: vehicle-manager-card”** (de obicei pe o instanta noua, cu un
+dashboard importat): Home Assistant incarca integrarea, deci si cardul, abia dupa ce ai adaugat
+un vehicul. Adauga un vehicul sau scrie in `configuration.yaml`:
+
+```yaml
+vehicle_manager:
+```
+
+apoi restarteaza si reincarca pagina (Ctrl+F5).
+
 ## Cardul
 
 Adauga un card manual si foloseste:
